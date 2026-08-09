@@ -31,7 +31,6 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
     <style>
-        /* ... كل الـ CSS الموجود كما هو ... */
         * {
             margin: 0;
             padding: 0;
@@ -2810,7 +2809,7 @@
                                 <i class="fas fa-map-marker-alt"></i>
                                 <div>
                                     <h4><span class="arabic-text">المقر الرئيسي</span><span class="english-text">Headquarters</span></h4>
-                                    <p><span class="arabic-text">شارع الملك فهد، حي الروضة، الرياض</span><span class="english-text">King Fahd Street, Al-Rawdah District, Riyadh</span></p>
+                                    <p><span class="arabic-text">دمياط الجديدة، مصر</span><span class="english-text">New Damietta, Egypt</span></p>
                                 </div>
                             </div>
                             <div class="location-item">
@@ -2836,7 +2835,7 @@
                             </div>
                         </div>
                         <div class="location-buttons">
-                            <a href="hhttps://maps.app.goo.gl/8i4AveK5nP31kWVz9" target="_blank" class="btn-location">
+                            <a href="https://www.google.com/maps/dir//31.435222,31.663778" target="_blank" class="btn-location">
                                 <i class="fas fa-directions"></i> <span class="arabic-text">احصل على الاتجاهات</span><span class="english-text">Get Directions</span>
                             </a>
                             <a href="https://maps.app.goo.gl/8i4AveK5nP31kWVz9" target="_blank" class="btn-location btn-secondary">
@@ -3419,16 +3418,16 @@
                 });
             }
 
-            // Leaflet Map
+            // Leaflet Map - تحديث الإحداثيات
             setTimeout(() => {
                 const mapContainer = document.getElementById('map');
                 if (mapContainer && typeof L !== 'undefined') {
-                    const map = L.map('map', { center: [24.7136, 46.6753], zoom: 15, zoomControl: true });
+                    const map = L.map('map', { center: [31.435222, 31.663778], zoom: 16, zoomControl: true });
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                         attribution: '&copy; OpenStreetMap',
                         maxZoom: 19,
                     }).addTo(map);
-                    L.marker([24.7136, 46.6753]).addTo(map).bindPopup('🏢 شركة الإنشاءات الهندسية').openPopup();
+                    L.marker([31.435222, 31.663778]).addTo(map).bindPopup('🏢 شركة الإنشاءات الهندسية - المقر الرئيسي').openPopup();
                     window.addEventListener('resize', () => map.invalidateSize());
                 }
             }, 500);
@@ -3479,7 +3478,7 @@
         });
 
         // ============================================================
-        // PROJECTS DATA - مع صور وفيديوهات عالية الجودة
+        // PROJECTS DATA
         // ============================================================
         const projectsData = [{
             id: 1,
@@ -3876,7 +3875,7 @@
                                 let mediaHTML = '';
                                 let hasMedia = false;
 
-                                // Images - استخدام PhotoSwipe
+                                // Images
                                 if (item.images && item.images.length > 0) {
                                     hasMedia = true;
                                     const imageId = 'timeline-gallery-' + Date.now() + '-' + index;
@@ -3892,7 +3891,7 @@
                                     `;
                                 }
 
-                                // Videos - استخدام Plyr
+                                // Videos
                                 if (item.videos && item.videos.length > 0) {
                                     hasMedia = true;
                                     mediaHTML += item.videos.map(v => `
@@ -3925,7 +3924,7 @@
                 `;
             }
 
-            // Build Content
+            // Build Content - مع إضافة رابط موقع الشركة في الـ Sidebar
             content.innerHTML = `
                 <div class="project-details-hero">
                     <span class="project-status-badge ${project.status}">${statusText}</span>
@@ -3956,6 +3955,15 @@
                                 ${Object.entries(stats).map(([key, value]) => `
                                     <li><span class="label">${key}</span><span class="value">${value}</span></li>
                                 `).join('')}
+                                <!-- ===== رابط موقع الشركة ===== -->
+                                <li>
+                                    <span class="label">📍 ${isArabic ? 'موقع الشركة' : 'Company Location'}</span>
+                                    <span class="value">
+                                        <a href="https://maps.app.goo.gl/8i4AveK5nP31kWVz9" target="_blank" style="color: var(--accent-light); font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                                            ${isArabic ? 'عرض على الخريطة' : 'View on Map'} <i class="fas fa-external-link-alt" style="font-size: 0.65rem;"></i>
+                                        </a>
+                                    </span>
+                                </li>
                             </ul>
                         </div>
                         <button class="btn-back-projects" onclick="goBackToProjects()">
@@ -3969,7 +3977,6 @@
             // INIT PHOTOSWIPE FOR TIMELINE IMAGES
             // =========================================================
             setTimeout(() => {
-                // تهيئة PhotoSwipe لكل مجموعة صور في الجدول الزمني
                 document.querySelectorAll('.timeline-item').forEach((item, idx) => {
                     const galleryLinks = item.querySelectorAll('.media-image.pswp-gallery-item');
                     if (galleryLinks.length > 0) {
@@ -3992,7 +3999,6 @@
                     }
                 });
 
-                // تهيئة PhotoSwipe للـ Main Gallery
                 const galleryEl = document.getElementById('mainGallery');
                 if (galleryEl) {
                     const lightbox = new PhotoSwipeLightbox({
@@ -4019,9 +4025,6 @@
                     const video = container.querySelector('video');
                     if (!video) return;
 
-                    const isArabic = !document.body.classList.contains('lang-en');
-
-                    // إنشاء Plyr لكل فيديو
                     const player = new Plyr(video, {
                         controls: ['play-large', 'play', 'progress', 'current-time', 'duration',
                             'mute', 'volume', 'fullscreen'
@@ -4046,11 +4049,9 @@
                         }
                     });
 
-                    // التحكم في الـ overlay
                     const overlay = container.querySelector('.play-overlay');
                     const playBtn = container.querySelector('.play-btn');
 
-                    // عند الضغط على زر التشغيل
                     if (playBtn) {
                         playBtn.addEventListener('click', function(e) {
                             e.stopPropagation();
@@ -4061,7 +4062,6 @@
                         });
                     }
 
-                    // عند الضغط على الفيديو نفسه
                     container.addEventListener('click', function(e) {
                         if (e.target.closest('.play-btn') || e.target.closest('.video-label')) return;
                         player.play();
@@ -4070,14 +4070,12 @@
                         }
                     });
 
-                    // إخفاء الـ overlay عند التشغيل
                     video.addEventListener('play', function() {
                         if (overlay) {
                             overlay.style.display = 'none';
                         }
                     });
 
-                    // إظهار الـ overlay عند التوقف أو النهاية (فقط في البداية)
                     video.addEventListener('pause', function() {
                         if (video.currentTime === 0 && overlay) {
                             overlay.style.display = 'flex';
@@ -4092,9 +4090,7 @@
                     container._plyr = player;
                 });
 
-                // تهيئة Plyr لفيديوهات المشروع الرئيسية
                 document.querySelectorAll('.project-video-item video').forEach(video => {
-                    const isArabic = !document.body.classList.contains('lang-en');
                     const player = new Plyr(video, {
                         controls: ['play-large', 'play', 'progress', 'current-time', 'duration',
                             'mute', 'volume', 'fullscreen'
