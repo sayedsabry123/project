@@ -1,0 +1,2901 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نظام إدارة مخزن الموقع</title>
+
+<!-- Bootstrap 5 RTL -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<!-- Google Fonts Cairo -->
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<!-- DataTables -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+<!-- SweetAlert2 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
+<style>
+:root{
+  --primary:#0f4c81;
+  --primary-dark:#0a3a63;
+  --primary-light:#1e6fb8;
+  --accent:#f39c12;
+  --success:#27ae60;
+  --danger:#e74c3c;
+  --warning:#f39c12;
+  --info:#3498db;
+  --dark:#1a2332;
+  --sidebar-bg:#0f2338;
+  --sidebar-hover:#1e3a5c;
+  --body-bg:#f0f4f8;
+  --card-shadow:0 4px 20px rgba(0,0,0,.08);
+  --radius:14px;
+}
+*{box-sizing:border-box;font-family:'Cairo',sans-serif}
+body{margin:0;background:var(--body-bg);color:#2c3e50;overflow-x:hidden}
+/* SIDEBAR */
+.sidebar{
+  position:fixed;top:0;right:0;height:100vh;width:260px;
+  background:linear-gradient(180deg,var(--sidebar-bg) 0%,#0a1a2b 100%);
+  color:#c8d6e5;z-index:1050;transition:all .3s;overflow-y:auto;
+  box-shadow:-4px 0 20px rgba(0,0,0,.15);
+}
+.sidebar::-webkit-scrollbar{width:6px}
+.sidebar::-webkit-scrollbar-thumb{background:#2c4a6e;border-radius:3px}
+.sidebar .brand{
+  padding:20px 18px;border-bottom:1px solid rgba(255,255,255,.08);
+  display:flex;align-items:center;gap:12px;
+}
+.sidebar .brand .logo{
+  width:46px;height:46px;border-radius:12px;
+  background:linear-gradient(135deg,var(--accent),#e67e22);
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:22px;flex-shrink:0;
+  box-shadow:0 4px 12px rgba(243,156,18,.4);
+}
+.sidebar .brand h5{margin:0;font-size:15px;font-weight:800;color:#fff;line-height:1.2}
+.sidebar .brand small{font-size:10.5px;color:#7a9cbf;font-weight:400}
+.sidebar .nav-section{padding:14px 18px 6px;font-size:11px;color:#5a7a9e;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.sidebar .nav-link{
+  color:#a8bfd6;padding:11px 18px;margin:3px 10px;border-radius:10px;
+  display:flex;align-items:center;gap:12px;font-size:13.5px;font-weight:600;
+  transition:all .2s;cursor:pointer;border:none;background:none;width:calc(100% - 20px);text-align:right;
+}
+.sidebar .nav-link i{width:20px;text-align:center;font-size:15px}
+.sidebar .nav-link:hover{background:var(--sidebar-hover);color:#fff;transform:translateX(-4px)}
+.sidebar .nav-link.active{
+  background:linear-gradient(90deg,var(--primary),var(--primary-light));
+  color:#fff;box-shadow:0 4px 12px rgba(15,76,129,.4);
+}
+.sidebar .nav-link .badge{margin-right:auto;font-size:10px}
+/* MAIN */
+.main-content{margin-right:260px;transition:all .3s;min-height:100vh}
+.topbar{
+  background:#fff;padding:12px 22px;display:flex;align-items:center;gap:15px;
+  box-shadow:0 2px 10px rgba(0,0,0,.05);position:sticky;top:0;z-index:1040;
+  border-bottom:1px solid #e8eef5;
+}
+.topbar .toggle-btn{display:none;background:none;border:none;font-size:20px;color:var(--primary)}
+.topbar .search-box{flex:1;max-width:520px;position:relative}
+.topbar .search-box input{
+  width:100%;padding:10px 40px 10px 16px;border-radius:12px;border:1px solid #dce6f0;
+  background:#f8fafd;font-size:13.5px;transition:all .2s;
+}
+.topbar .search-box input:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(15,76,129,.1)}
+.topbar .search-box i{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:#94a3b8}
+.topbar .search-results{
+  position:absolute;top:110%;right:0;left:0;background:#fff;border-radius:12px;
+  box-shadow:0 10px 40px rgba(0,0,0,.15);max-height:400px;overflow-y:auto;display:none;z-index:1100;
+  border:1px solid #e8eef5;
+}
+.topbar .search-results.show{display:block}
+.search-result-item{padding:10px 16px;border-bottom:1px solid #f0f4f8;cursor:pointer;transition:background .15s}
+.search-result-item:hover{background:#f0f7ff}
+.search-result-item .title{font-weight:700;font-size:13.5px;color:var(--primary)}
+.search-result-item .sub{font-size:11.5px;color:#64748b;margin-top:2px}
+.topbar .user-info{display:flex;align-items:center;gap:10px;margin-right:auto}
+.topbar .user-info .avatar{
+  width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-light));
+  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;
+}
+.topbar .user-info .name{font-size:13px;font-weight:700;line-height:1.2}
+.topbar .user-info .role{font-size:11px;color:#64748b}
+/* PAGE */
+.page{padding:22px;animation:fadeIn .3s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.page-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px}
+.page-header h4{margin:0;font-weight:800;color:var(--dark);font-size:20px}
+.page-header p{margin:4px 0 0;color:#64748b;font-size:13px}
+/* CARDS */
+.stat-card{
+  background:#fff;border-radius:var(--radius);padding:18px;box-shadow:var(--card-shadow);
+  display:flex;align-items:center;gap:14px;transition:all .25s;border:1px solid #eef3f8;height:100%;
+}
+.stat-card:hover{transform:translateY(-4px);box-shadow:0 12px 30px rgba(0,0,0,.12)}
+.stat-card .icon{
+  width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+  font-size:22px;color:#fff;flex-shrink:0;
+}
+.stat-card .info h3{margin:0;font-size:24px;font-weight:800;color:var(--dark)}
+.stat-card .info p{margin:2px 0 0;font-size:12.5px;color:#64748b;font-weight:600}
+.bg-grad-blue{background:linear-gradient(135deg,#0f4c81,#1e6fb8)}
+.bg-grad-green{background:linear-gradient(135deg,#27ae60,#2ecc71)}
+.bg-grad-orange{background:linear-gradient(135deg,#f39c12,#e67e22)}
+.bg-grad-red{background:linear-gradient(135deg,#e74c3c,#c0392b)}
+.bg-grad-purple{background:linear-gradient(135deg,#8e44ad,#9b59b6)}
+.bg-grad-teal{background:linear-gradient(135deg,#16a085,#1abc9c)}
+/* CONTENT CARD */
+.content-card{
+  background:#fff;border-radius:var(--radius);box-shadow:var(--card-shadow);
+  border:1px solid #eef3f8;overflow:hidden;margin-bottom:20px;
+}
+.content-card .card-head{
+  padding:16px 20px;border-bottom:1px solid #eef3f8;display:flex;align-items:center;
+  justify-content:space-between;flex-wrap:wrap;gap:10px;background:#fafcff;
+}
+.content-card .card-head h6{margin:0;font-weight:800;color:var(--dark);font-size:15px;display:flex;align-items:center;gap:8px}
+.content-card .card-head h6 i{color:var(--primary)}
+.content-card .card-body{padding:20px}
+/* TABLE */
+.table-responsive{border-radius:10px}
+table.dataTable{font-size:13px !important;width:100% !important}
+table.dataTable thead th{
+  background:#f0f6fc !important;color:var(--dark) !important;font-weight:800 !important;
+  font-size:12.5px !important;border-bottom:2px solid #dbe7f2 !important;padding:12px 10px !important;white-space:nowrap;
+}
+table.dataTable tbody td{padding:11px 10px !important;vertical-align:middle;border-color:#f0f4f8 !important}
+table.dataTable tbody tr:hover{background:#f8fbff !important}
+.dataTables_wrapper .dataTables_filter input{
+  border-radius:10px;border:1px solid #dce6f0;padding:7px 12px;font-size:13px;
+}
+.dataTables_wrapper .dataTables_length select{border-radius:10px;border:1px solid #dce6f0;padding:5px 10px}
+/* BADGES */
+.badge-status{padding:5px 11px;border-radius:20px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:5px}
+.badge-success{background:#d5f5e3;color:#1e8449}
+.badge-warning{background:#fef5e7;color:#b9770e}
+.badge-danger{background:#fdedec;color:#c0392b}
+.badge-info{background:#e8f4fd;color:#1a6fa8}
+.badge-secondary{background:#eef2f7;color:#5a6c7d}
+/* BUTTONS */
+.btn{border-radius:10px;font-weight:700;font-size:13px;padding:8px 16px;transition:all .2s}
+.btn-primary{background:var(--primary);border-color:var(--primary)}
+.btn-primary:hover{background:var(--primary-dark);border-color:var(--primary-dark);transform:translateY(-1px);box-shadow:0 4px 12px rgba(15,76,129,.3)}
+.btn-action{width:32px;height:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;font-size:12.5px;margin:0 2px}
+.btn-icon{width:38px;height:38px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:10px}
+/* FORM */
+.form-label{font-size:13px;font-weight:700;color:#475569;margin-bottom:6px}
+.form-control,.form-select{border-radius:10px;border:1px solid #dce6f0;font-size:13.5px;padding:9px 13px;transition:all .2s}
+.form-control:focus,.form-select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(15,76,129,.1)}
+.form-control::placeholder{color:#a0aec0}
+.required::after{content:" *";color:var(--danger)}
+/* MODAL */
+.modal-content{border-radius:16px;border:none;overflow:hidden}
+.modal-header{background:linear-gradient(135deg,var(--primary),var(--primary-light));color:#fff;padding:16px 22px;border:none}
+.modal-header .modal-title{font-weight:800;font-size:16px;display:flex;align-items:center;gap:9px}
+.modal-header .btn-close{filter:brightness(0) invert(1);opacity:.85}
+.modal-body{padding:22px}
+.modal-footer{border-top:1px solid #eef3f8;padding:14px 22px}
+/* EMPTY STATE */
+.empty-state{text-align:center;padding:50px 20px;color:#94a3b8}
+.empty-state i{font-size:56px;color:#cbd5e1;margin-bottom:16px}
+.empty-state h6{font-weight:800;color:#64748b;font-size:16px}
+.empty-state p{font-size:13px;margin:6px 0 0}
+/* ALERTS */
+.alert-item{
+  display:flex;align-items:center;gap:12px;padding:12px 15px;border-radius:12px;
+  margin-bottom:10px;font-size:13px;font-weight:600;border-right:4px solid;
+}
+.alert-danger-item{background:#fdedec;border-color:var(--danger);color:#922b21}
+.alert-warning-item{background:#fef5e7;border-color:var(--warning);color:#9c640c}
+.alert-success-item{background:#d5f5e3;border-color:var(--success);color:#1e8449}
+/* CHART */
+.chart-container{position:relative;height:300px;width:100%}
+/* TABS */
+.nav-pills .nav-link{
+  border-radius:10px;font-weight:700;font-size:13px;color:#64748b;padding:9px 18px;
+}
+.nav-pills .nav-link.active{background:var(--primary);color:#fff;box-shadow:0 4px 12px rgba(15,76,129,.3)}
+/* ITEM ROW in receipt/issue */
+.item-row{background:#f8fafd;border:1px solid #e8eef5;border-radius:12px;padding:14px;margin-bottom:12px;position:relative}
+.item-row .remove-row{position:absolute;top:8px;left:8px;width:26px;height:26px;border-radius:50%;border:none;background:#fdedec;color:var(--danger);font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s}
+.item-row .remove-row:hover{background:var(--danger);color:#fff}
+/* LOADING */
+.loading-overlay{
+  position:fixed;inset:0;background:rgba(255,255,255,.8);z-index:9999;
+  display:none;align-items:center;justify-content:center;backdrop-filter:blur(3px);
+}
+.loading-overlay.show{display:flex}
+.spinner-box{text-align:center}
+.spinner-box .spinner{width:50px;height:50px;border:4px solid #e8eef5;border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* RESPONSIVE */
+@media(max-width:991px){
+  .sidebar{transform:translateX(100%);width:280px}
+  .sidebar.show{transform:translateX(0)}
+  .main-content{margin-right:0}
+  .topbar .toggle-btn{display:block}
+  .topbar .user-info .name,.topbar .user-info .role{display:none}
+}
+@media(max-width:576px){
+  .page{padding:14px}
+  .topbar{padding:10px 14px}
+  .stat-card .info h3{font-size:20px}
+  .page-header h4{font-size:17px}
+}
+.sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1049;display:none}
+.sidebar-overlay.show{display:block}
+/* print */
+@media print{
+  .sidebar,.topbar,.no-print{display:none !important}
+  .main-content{margin:0}
+  .page{padding:0}
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="brand">
+    <div class="logo"><i class="fas fa-warehouse"></i></div>
+    <div>
+      <h5>مخزن الموقع</h5>
+      <small>سباكة • كهرباء • PT</small>
+    </div>
+  </div>
+  <div class="nav-section">القائمة الرئيسية</div>
+  <button class="nav-link active" data-page="dashboard"><i class="fas fa-home"></i> لوحة التحكم</button>
+  <button class="nav-link" data-page="products"><i class="fas fa-boxes-stacked"></i> الأصناف والمخزون</button>
+  <button class="nav-link" data-page="receipts"><i class="fas fa-truck-ramp-box"></i> استلام بضاعة</button>
+  <button class="nav-link" data-page="issues"><i class="fas fa-dolly"></i> صرف بضاعة</button>
+  <button class="nav-link" data-page="returns"><i class="fas fa-rotate-left"></i> المرتجعات</button>
+  <button class="nav-link" data-page="movements"><i class="fas fa-list-check"></i> حركة المخزون</button>
+  <div class="nav-section">الاستعلامات</div>
+  <button class="nav-link" data-page="who-took"><i class="fas fa-user-magnifying-glass"></i> من سحب ماذا؟</button>
+  <button class="nav-link" data-page="balance"><i class="fas fa-scale-balanced"></i> الرصيد الحالي</button>
+  <button class="nav-link" data-page="inventory"><i class="fas fa-clipboard-check"></i> الجرد</button>
+  <button class="nav-link" data-page="alerts"><i class="fas fa-triangle-exclamation"></i> تنبيهات المخزون</button>
+  <div class="nav-section">الإدارة</div>
+  <button class="nav-link" data-page="users"><i class="fas fa-users"></i> الأشخاص</button>
+  <button class="nav-link" data-page="projects"><i class="fas fa-building"></i> المشاريع</button>
+  <button class="nav-link" data-page="reports"><i class="fas fa-chart-column"></i> التقارير</button>
+  <button class="nav-link" data-page="settings"><i class="fas fa-gear"></i> الإعدادات</button>
+</aside>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- MAIN -->
+<div class="main-content">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <button class="toggle-btn" id="toggleBtn"><i class="fas fa-bars"></i></button>
+    <div class="search-box">
+      <i class="fas fa-search"></i>
+      <input type="text" id="globalSearch" placeholder="ابحث عن صنف، كود، شخص، مشروع..." autocomplete="off">
+      <div class="search-results" id="searchResults"></div>
+    </div>
+    <div class="user-info">
+      <div style="text-align:left">
+        <div class="name" id="currentUserName">مدير النظام</div>
+        <div class="role" id="currentUserRole">Admin</div>
+      </div>
+      <div class="avatar" id="currentUserAvatar">م</div>
+    </div>
+  </header>
+
+  <!-- PAGES -->
+  <main id="app"></main>
+</div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner-box">
+    <div class="spinner"></div>
+    <div style="font-weight:700;color:var(--primary)">جاري المعالجة...</div>
+  </div>
+</div>
+
+<!-- SCRIPTS -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+/* ============================================================
+   DATA SERVICE LAYER (يمكن استبداله بـ Firebase لاحقًا)
+   ============================================================ */
+const DB = (() => {
+  const KEYS = {
+    products:'wh_products', receipts:'wh_receipts', issues:'wh_issues',
+    stockMovements:'wh_movements', users:'wh_users', projects:'wh_projects',
+    returns:'wh_returns', inventoryChecks:'wh_inventory', settings:'wh_settings',
+    meta:'wh_meta', currentUser:'wh_current_user'
+  };
+  function read(key, def=[]){ try{ const v=localStorage.getItem(key); return v?JSON.parse(v):def; }catch(e){ return def; } }
+  function write(key,val){ localStorage.setItem(key, JSON.stringify(val)); }
+  return {
+    KEYS,
+    get:(k,d)=>read(k,d),
+    set:(k,v)=>write(k,v),
+    uid:(prefix='ID')=> prefix+'-'+Date.now().toString(36).toUpperCase()+'-'+Math.random().toString(36).substr(2,4).toUpperCase(),
+    // Products
+    getProducts:()=>read(KEYS.products,[]),
+    saveProducts:(v)=>write(KEYS.products,v),
+    // Receipts
+    getReceipts:()=>read(KEYS.receipts,[]),
+    saveReceipts:(v)=>write(KEYS.receipts,v),
+    // Issues
+    getIssues:()=>read(KEYS.issues,[]),
+    saveIssues:(v)=>write(KEYS.issues,v),
+    // Movements
+    getMovements:()=>read(KEYS.stockMovements,[]),
+    saveMovements:(v)=>write(KEYS.stockMovements,v),
+    // Users
+    getUsers:()=>read(KEYS.users,[]),
+    saveUsers:(v)=>write(KEYS.users,v),
+    // Projects
+    getProjects:()=>read(KEYS.projects,[]),
+    saveProjects:(v)=>write(KEYS.projects,v),
+    // Returns
+    getReturns:()=>read(KEYS.returns,[]),
+    saveReturns:(v)=>write(KEYS.returns,v),
+    // Inventory
+    getInventory:()=>read(KEYS.inventoryChecks,[]),
+    saveInventory:(v)=>write(KEYS.inventoryChecks,v),
+    // Settings
+    getSettings:()=>read(KEYS.settings,{categories:['سباكة','كهرباء','Post Tension','أدوات ومعدات','أخرى'], units:['قطعة','كرتونة','لفة','متر','كيلو','طن','شيكارة','جردل','لتر','مجموعة','عدد'], lowStockThreshold:10, companyName:'شركة المقاولات'}),
+    saveSettings:(v)=>write(KEYS.settings,v),
+    // Meta
+    getMeta:()=>read(KEYS.meta,{initialized:false}),
+    saveMeta:(v)=>write(KEYS.meta,v),
+    // Backup
+    exportAll:()=>{
+      const data={};
+      Object.values(KEYS).forEach(k=>{ if(k!==KEYS.currentUser) data[k]=read(k,[]); });
+      return data;
+    },
+    importAll:(data)=>{
+      Object.keys(data).forEach(k=>{ if(data[k]!==undefined) write(k,data[k]); });
+    },
+    clearAll:()=>{ Object.values(KEYS).forEach(k=>{ if(k!==KEYS.currentUser) localStorage.removeItem(k); }); }
+  };
+})();
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+const Utils = {
+  formatDate:(d)=>{ if(!d) return ''; const dt=new Date(d); return dt.toLocaleDateString('ar-EG',{year:'numeric',month:'2-digit',day:'2-digit'}); },
+  formatDateTime:(d)=>{ if(!d) return ''; const dt=new Date(d); return dt.toLocaleDateString('ar-EG')+' '+dt.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}); },
+  nowISO:()=> new Date().toISOString(),
+  today:()=> new Date().toISOString().split('T')[0],
+  escape:(s)=>{ if(s===undefined||s===null) return ''; return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); },
+  showLoading:()=> document.getElementById('loadingOverlay').classList.add('show'),
+  hideLoading:()=> document.getElementById('loadingOverlay').classList.remove('show'),
+  toast:(icon,title)=>{
+    Swal.fire({toast:true,position:'top-start',icon,title,showConfirmButton:false,timer:2500,timerProgressBar:true});
+  },
+  confirmDelete:(text='هل أنت متأكد من الحذف؟')=>{
+    return Swal.fire({
+      title:'تأكيد الحذف', text, icon:'warning', showCancelButton:true,
+      confirmButtonText:'نعم، احذف', cancelButtonText:'إلغاء',
+      confirmButtonColor:'#e74c3c', cancelButtonColor:'#64748b', reverseButtons:true
+    });
+  }
+};
+
+/* ============================================================
+   BUSINESS LOGIC - Stock Operations
+   ============================================================ */
+const Stock = {
+  calculateBalance(productId){
+    const movements = DB.getMovements().filter(m=>m.productId===productId);
+    let balance = 0;
+    movements.forEach(m=>{
+      if(['استلام','مرتجع','تعديل-زيادة','جرد-زيادة'].includes(m.type)) balance += Number(m.quantity);
+      else if(['صرف','تعديل-نقص','جرد-نقص'].includes(m.type)) balance -= Number(m.quantity);
+      else if(m.type==='جرد') balance = Number(m.balanceAfter);
+    });
+    return balance;
+  },
+  getProductBalance(productId){
+    const p = DB.getProducts().find(x=>x.id===productId);
+    return p ? Number(p.currentQty||0) : 0;
+  },
+  updateProductQty(productId, delta){
+    const products = DB.getProducts();
+    const idx = products.findIndex(p=>p.id===productId);
+    if(idx===-1) return false;
+    products[idx].currentQty = Number(products[idx].currentQty||0) + Number(delta);
+    if(products[idx].currentQty < 0) products[idx].currentQty = 0;
+    DB.saveProducts(products);
+    return products[idx];
+  },
+  addMovement(data){
+    const movements = DB.getMovements();
+    const product = DB.getProducts().find(p=>p.id===data.productId);
+    const before = product ? Number(product.currentQty||0) : 0;
+    const move = {
+      id: DB.uid('MOV'),
+      date: data.date || Utils.today(),
+      time: data.time || new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}),
+      type: data.type,
+      productId: data.productId,
+      productName: product ? product.name : '',
+      productCode: product ? product.code : '',
+      category: product ? product.category : '',
+      quantity: Number(data.quantity),
+      unit: product ? product.unit : (data.unit||''),
+      person: data.person || '',
+      project: data.project || '',
+      refNumber: data.refNumber || '',
+      balanceBefore: before,
+      balanceAfter: before + (['استلام','مرتجع','تعديل-زيادة','جرد-زيادة'].includes(data.type)? Number(data.quantity) : -Number(data.quantity)),
+      notes: data.notes || '',
+      createdAt: Utils.nowISO()
+    };
+    if(data.type==='جرد'){
+      move.balanceAfter = Number(data.quantity);
+      move.quantity = Number(data.quantity) - before;
+    }
+    movements.push(move);
+    DB.saveMovements(movements);
+    return move;
+  },
+  receiveStock(payload){
+    // payload: { receiptData, items:[{productId, quantity, unit}] }
+    const products = DB.getProducts();
+    const receipt = {
+      id: DB.uid('RCV'),
+      receiptNo: payload.receiptData.receiptNo,
+      date: payload.receiptData.date,
+      supplier: payload.receiptData.supplier,
+      poNumber: payload.receiptData.poNumber,
+      receiver: payload.receiptData.receiver,
+      carNumber: payload.receiptData.carNumber,
+      storeLocation: payload.receiptData.storeLocation,
+      notes: payload.receiptData.notes,
+      items: [],
+      createdAt: Utils.nowISO()
+    };
+    for(const item of payload.items){
+      const pIdx = products.findIndex(p=>p.id===item.productId);
+      if(pIdx===-1) continue;
+      const before = Number(products[pIdx].currentQty||0);
+      products[pIdx].currentQty = before + Number(item.quantity);
+      if(item.storeLocation) products[pIdx].storeLocation = item.storeLocation;
+      receipt.items.push({
+        productId:item.productId,
+        productName: products[pIdx].name,
+        productCode: products[pIdx].code,
+        quantity:Number(item.quantity),
+        unit: products[pIdx].unit,
+        before, after: products[pIdx].currentQty
+      });
+      Stock.addMovement({
+        type:'استلام', productId:item.productId, quantity:item.quantity,
+        person: payload.receiptData.receiver, refNumber: payload.receiptData.receiptNo,
+        notes: 'إذن استلام', date: payload.receiptData.date
+      });
+    }
+    DB.saveProducts(products);
+    const receipts = DB.getReceipts();
+    receipts.push(receipt);
+    DB.saveReceipts(receipts);
+    return receipt;
+  },
+  issueStock(payload){
+    // payload: { issueData, items:[{productId, quantity}] }
+    const products = DB.getProducts();
+    // Validation
+    for(const item of payload.items){
+      const p = products.find(x=>x.id===item.productId);
+      if(!p) throw new Error('الصنف غير موجود');
+      if(Number(item.quantity) > Number(p.currentQty||0)){
+        throw new Error(`الكمية الموجودة في المخزن غير كافية للصنف: ${p.name} (المتاح: ${p.currentQty} ${p.unit})`);
+      }
+    }
+    const issue = {
+      id: DB.uid('ISS'),
+      issueNo: payload.issueData.issueNo,
+      date: payload.issueData.date,
+      time: payload.issueData.time,
+      person: payload.issueData.person,
+      jobTitle: payload.issueData.jobTitle,
+      department: payload.issueData.department,
+      project: payload.issueData.project,
+      location: payload.issueData.location,
+      reason: payload.issueData.reason,
+      notes: payload.issueData.notes,
+      items: [],
+      createdAt: Utils.nowISO()
+    };
+    for(const item of payload.items){
+      const pIdx = products.findIndex(p=>p.id===item.productId);
+      const before = Number(products[pIdx].currentQty||0);
+      products[pIdx].currentQty = before - Number(item.quantity);
+      issue.items.push({
+        productId:item.productId,
+        productName: products[pIdx].name,
+        productCode: products[pIdx].code,
+        quantity:Number(item.quantity),
+        unit: products[pIdx].unit,
+        before, after: products[pIdx].currentQty
+      });
+      Stock.addMovement({
+        type:'صرف', productId:item.productId, quantity:item.quantity,
+        person: payload.issueData.person, project: payload.issueData.project,
+        refNumber: payload.issueData.issueNo, notes: payload.issueData.reason||'صرف',
+        date: payload.issueData.date, time: payload.issueData.time
+      });
+    }
+    DB.saveProducts(products);
+    const issues = DB.getIssues();
+    issues.push(issue);
+    DB.saveIssues(issues);
+    return issue;
+  },
+  returnStock(payload){
+    const products = DB.getProducts();
+    const ret = {
+      id: DB.uid('RET'),
+      returnNo: payload.returnNo || DB.uid('RET'),
+      date: payload.date,
+      person: payload.person,
+      project: payload.project,
+      reason: payload.reason,
+      notes: payload.notes,
+      items: [],
+      createdAt: Utils.nowISO()
+    };
+    for(const item of payload.items){
+      const pIdx = products.findIndex(p=>p.id===item.productId);
+      if(pIdx===-1) continue;
+      const before = Number(products[pIdx].currentQty||0);
+      products[pIdx].currentQty = before + Number(item.quantity);
+      ret.items.push({
+        productId:item.productId,
+        productName: products[pIdx].name,
+        quantity:Number(item.quantity),
+        unit: products[pIdx].unit,
+        before, after: products[pIdx].currentQty
+      });
+      Stock.addMovement({
+        type:'مرتجع', productId:item.productId, quantity:item.quantity,
+        person: payload.person, project: payload.project,
+        refNumber: ret.returnNo, notes: payload.reason||'مرتجع', date: payload.date
+      });
+    }
+    DB.saveProducts(products);
+    const returns = DB.getReturns();
+    returns.push(ret);
+    DB.saveReturns(returns);
+    return ret;
+  },
+  performInventory(productId, actualQty, notes){
+    const products = DB.getProducts();
+    const pIdx = products.findIndex(p=>p.id===productId);
+    if(pIdx===-1) throw new Error('الصنف غير موجود');
+    const before = Number(products[pIdx].currentQty||0);
+    const diff = Number(actualQty) - before;
+    products[pIdx].currentQty = Number(actualQty);
+    DB.saveProducts(products);
+    const record = {
+      id: DB.uid('INV'),
+      productId, productName: products[pIdx].name, productCode: products[pIdx].code,
+      registeredQty: before, actualQty: Number(actualQty), difference: diff,
+      status: diff===0?'مطابق':(diff>0?'زيادة':'عجز'),
+      date: Utils.today(), notes: notes||'', createdAt: Utils.nowISO()
+    };
+    const checks = DB.getInventory();
+    checks.push(record);
+    DB.saveInventory(checks);
+    // Record movement
+    Stock.addMovement({
+      type:'جرد', productId, quantity: Number(actualQty),
+      person: 'الجرد', notes: `جرد: ${record.status} (${diff>0?'+':''}${diff})`,
+      refNumber: record.id
+    });
+    return record;
+  },
+  getLowStockProducts(){
+    const products = DB.getProducts();
+    const settings = DB.getSettings();
+    return products.filter(p=>{
+      const qty = Number(p.currentQty||0);
+      const min = Number(p.minQty||0);
+      return qty <= min && qty > 0;
+    });
+  },
+  getOutOfStockProducts(){
+    return DB.getProducts().filter(p=>Number(p.currentQty||0) <= 0);
+  },
+  getStatus(product){
+    const qty = Number(product.currentQty||0);
+    const min = Number(product.minQty||0);
+    if(qty <= 0) return {label:'نافد', class:'badge-danger', icon:'🔴'};
+    if(qty <= min) return {label:'منخفض', class:'badge-warning', icon:'🟡'};
+    return {label:'متوفر', class:'badge-success', icon:'🟢'};
+  }
+};
+
+/* ============================================================
+   SEED DATA
+   ============================================================ */
+const Seed = {
+  init(){
+    const meta = DB.getMeta();
+    if(meta.initialized) return;
+    const settings = DB.getSettings();
+    // Users
+    const users = [
+      {id:DB.uid('USR'),name:'أحمد محمد',jobTitle:'سباك',department:'السباكة',phone:'01000000001',project:'مشروع A',status:'نشط',notes:''},
+      {id:DB.uid('USR'),name:'محمد علي',jobTitle:'كهربائي',department:'الكهرباء',phone:'01000000002',project:'مشروع B',status:'نشط',notes:''},
+      {id:DB.uid('USR'),name:'خالد إبراهيم',jobTitle:'مهندس مدني',department:'الهندسة',phone:'01000000003',project:'مشروع A',status:'نشط',notes:''},
+      {id:DB.uid('USR'),name:'سيد مصطفى',jobTitle:'عامل',department:'Post Tension',phone:'01000000004',project:'مشروع C',status:'نشط',notes:''}
+    ];
+    DB.saveUsers(users);
+    // Projects
+    const projects = [
+      {id:DB.uid('PRJ'),name:'مشروع A - برج سكني',code:'PRJ-A',location:'القاهرة الجديدة',manager:'م. أحمد سامي',engineer:'م. خالد إبراهيم',status:'قيد التنفيذ'},
+      {id:DB.uid('PRJ'),name:'مشروع B - مجمع تجاري',code:'PRJ-B',location:'العاصمة الإدارية',manager:'م. محمد فؤاد',engineer:'م. علي حسن',status:'قيد التنفيذ'},
+      {id:DB.uid('PRJ'),name:'مشروع C - جسر خرساني',code:'PRJ-C',location:'6 أكتوبر',manager:'م. سامح رمزي',engineer:'م. ياسر عبدالله',status:'قيد التنفيذ'}
+    ];
+    DB.saveProjects(projects);
+    // Products
+    const products = [
+      // سباكة
+      {code:'PL-001',name:'مواسير PPR 20mm',category:'سباكة',description:'مواسير بلاستيك PPR قطر 20mm',unit:'متر',minQty:50,currentQty:200,storeLocation:'A-1',supplier:'شركة النور',poNumber:'PO-1001',dateAdded:Utils.today(),notes:''},
+      {code:'PL-002',name:'أكواع PPR 20mm',category:'سباكة',description:'أكواع PPR 90 درجة',unit:'قطعة',minQty:100,currentQty:500,storeLocation:'A-1',supplier:'شركة النور',poNumber:'PO-1001',dateAdded:Utils.today(),notes:''},
+      {code:'PL-003',name:'تيهات PPR 20mm',category:'سباكة',description:'تيهات PPR',unit:'قطعة',minQty:80,currentQty:300,storeLocation:'A-2',supplier:'شركة النور',poNumber:'PO-1001',dateAdded:Utils.today(),notes:''},
+      {code:'PL-004',name:'محابس PPR 20mm',category:'سباكة',description:'محابس كروية PPR',unit:'قطعة',minQty:30,currentQty:80,storeLocation:'A-2',supplier:'شركة الأمان',poNumber:'PO-1002',dateAdded:Utils.today(),notes:''},
+      {code:'PL-005',name:'وصلات PPR',category:'سباكة',description:'وصلات مستقيمة',unit:'قطعة',minQty:100,currentQty:400,storeLocation:'A-3',supplier:'شركة النور',poNumber:'PO-1001',dateAdded:Utils.today(),notes:''},
+      {code:'PL-006',name:'فلانشات',category:'سباكة',description:'فلانشات حديد',unit:'قطعة',minQty:20,currentQty:45,storeLocation:'A-3',supplier:'شركة الحديد',poNumber:'PO-1003',dateAdded:Utils.today(),notes:''},
+      // كهرباء
+      {code:'EL-001',name:'كابل كهرباء 3x2.5',category:'كهرباء',description:'كابل نحاس 3x2.5mm',unit:'متر',minQty:200,currentQty:800,storeLocation:'B-1',supplier:'الشركة المصرية للكابلات',poNumber:'PO-2001',dateAdded:Utils.today(),notes:''},
+      {code:'EL-002',name:'مواسير كهرباء PVC',category:'كهرباء',description:'مواسير PVC كهرباء 20mm',unit:'متر',minQty:150,currentQty:600,storeLocation:'B-1',supplier:'شركة البلاستيك',poNumber:'PO-2002',dateAdded:Utils.today(),notes:''},
+      {code:'EL-003',name:'علب كهرباء',category:'كهرباء',description:'علب تفريع',unit:'قطعة',minQty:100,currentQty:350,storeLocation:'B-2',supplier:'شركة الأدوات',poNumber:'PO-2003',dateAdded:Utils.today(),notes:''},
+      {code:'EL-004',name:'قواطع 32A',category:'كهرباء',description:'قواطع كهربائية 32 أمبير',unit:'قطعة',minQty:20,currentQty:60,storeLocation:'B-2',supplier:'شركة شنايدر',poNumber:'PO-2004',dateAdded:Utils.today(),notes:''},
+      {code:'EL-005',name:'مفاتيح كهرباء',category:'كهرباء',description:'مفاتيح إضاءة',unit:'قطعة',minQty:50,currentQty:200,storeLocation:'B-3',supplier:'شركة شنايدر',poNumber:'PO-2004',dateAdded:Utils.today(),notes:''},
+      {code:'EL-006',name:'برايز كهرباء',category:'كهرباء',description:'برايز حائط',unit:'قطعة',minQty:50,currentQty:180,storeLocation:'B-3',supplier:'شركة شنايدر',poNumber:'PO-2004',dateAdded:Utils.today(),notes:''},
+      // Post Tension
+      {code:'PT-001',name:'كابلات Post Tension',category:'Post Tension',description:'كابلات فولاذية 0.6"',unit:'لفة',minQty:10,currentQty:35,storeLocation:'C-1',supplier:'شركة PT العالمية',poNumber:'PO-3001',dateAdded:Utils.today(),notes:''},
+      {code:'PT-002',name:'Duct Post Tension',category:'Post Tension',description:'أنابيب مرنة',unit:'لفة',minQty:15,currentQty:50,storeLocation:'C-1',supplier:'شركة PT العالمية',poNumber:'PO-3001',dateAdded:Utils.today(),notes:''},
+      {code:'PT-003',name:'Anchors',category:'Post Tension',description:'مثبتات طرفية',unit:'قطعة',minQty:100,currentQty:400,storeLocation:'C-2',supplier:'شركة PT العالمية',poNumber:'PO-3002',dateAdded:Utils.today(),notes:''},
+      {code:'PT-004',name:'Wedges',category:'Post Tension',description:'إسفين تثبيت',unit:'قطعة',minQty:200,currentQty:600,storeLocation:'C-2',supplier:'شركة PT العالمية',poNumber:'PO-3002',dateAdded:Utils.today(),notes:''},
+      {code:'PT-005',name:'Grouting Materials',category:'Post Tension',description:'مواد الحقن الأسمنتي',unit:'شيكارة',minQty:30,currentQty:90,storeLocation:'C-3',supplier:'شركة المواد',poNumber:'PO-3003',dateAdded:Utils.today(),notes:''},
+      {code:'PT-006',name:'Accessories PT',category:'Post Tension',description:'ملحقات متنوعة',unit:'مجموعة',minQty:20,currentQty:50,storeLocation:'C-3',supplier:'شركة PT العالمية',poNumber:'PO-3003',dateAdded:Utils.today(),notes:''}
+    ];
+    const productsWithIds = products.map(p=>({id:DB.uid('PRD'),...p}));
+    DB.saveProducts(productsWithIds);
+    // Sample movements
+    const movements = [];
+    productsWithIds.forEach(p=>{
+      movements.push({
+        id:DB.uid('MOV'), date:Utils.today(), time:'09:00', type:'استلام',
+        productId:p.id, productName:p.name, productCode:p.code, category:p.category,
+        quantity:p.currentQty, unit:p.unit, person:'أمين المخزن', project:'',
+        refNumber:'RCV-INIT-'+p.code, balanceBefore:0, balanceAfter:p.currentQty,
+        notes:'رصيد افتتاحي', createdAt:Utils.nowISO()
+      });
+    });
+    DB.saveMovements(movements);
+    meta.initialized = true;
+    DB.saveMeta(meta);
+  }
+};
+
+/* ============================================================
+   AUTH / PERMISSIONS
+   ============================================================ */
+const Auth = {
+  ROLES:{
+    Admin:{name:'مدير النظام', perms:['view','add','edit','delete','receive','issue','return','inventory','backup','users','projects']},
+    Storekeeper:{name:'أمين مخزن', perms:['view','add','edit','receive','issue','return','inventory']},
+    Viewer:{name:'مشاهد', perms:['view']}
+  },
+  getCurrent(){
+    const saved = DB.get(DB.KEYS.currentUser, null);
+    return saved || {name:'مدير النظام', role:'Admin'};
+  },
+  setCurrent(user){ DB.set(DB.KEYS.currentUser, user); },
+  can(perm){
+    const u = Auth.getCurrent();
+    const role = Auth.ROLES[u.role] || Auth.ROLES.Viewer;
+    return role.perms.includes(perm);
+  },
+  requirePerm(perm){
+    if(!Auth.can(perm)){
+      Swal.fire({icon:'error',title:'غير مصرح',text:'ليس لديك صلاحية للقيام بهذا الإجراء'});
+      return false;
+    }
+    return true;
+  }
+};
+
+/* ============================================================
+   UI HELPERS
+   ============================================================ */
+const UI = {
+  setActive(page){
+    document.querySelectorAll('.sidebar .nav-link').forEach(el=>{
+      el.classList.toggle('active', el.dataset.page===page);
+    });
+  },
+  emptyState(title, msg, icon='fa-inbox'){
+    return `<div class="empty-state"><i class="fas ${icon}"></i><h6>${title}</h6><p>${msg||''}</p></div>`;
+  },
+  statCard(icon, color, value, label){
+    return `<div class="stat-card">
+      <div class="icon ${color}"><i class="fas ${icon}"></i></div>
+      <div class="info"><h3>${value}</h3><p>${label}</p></div>
+    </div>`;
+  }
+};
+
+/* ============================================================
+   PAGES
+   ============================================================ */
+const Pages = {};
+
+/* ---------- DASHBOARD ---------- */
+Pages.dashboard = () => {
+  const products = DB.getProducts();
+  const movements = DB.getMovements();
+  const receipts = DB.getReceipts();
+  const issues = DB.getIssues();
+  const users = DB.getUsers();
+
+  const totalProducts = products.length;
+  const totalQty = products.reduce((s,p)=>s+Number(p.currentQty||0),0);
+  const lowStock = Stock.getLowStockProducts().length;
+  const outStock = Stock.getOutOfStockProducts().length;
+  const totalReceipts = receipts.length;
+  const totalIssues = issues.length;
+  const uniqueIssuers = new Set(issues.map(i=>i.person).filter(Boolean)).size;
+
+  // آخر الحركات
+  const recentMovements = [...movements].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,8);
+
+  // أكثر الأصناف سحبًا
+  const issueMap = {};
+  issues.forEach(iss=>{
+    (iss.items||[]).forEach(it=>{
+      issueMap[it.productId] = issueMap[it.productId] || {name:it.productName, qty:0, unit:it.unit};
+      issueMap[it.productId].qty += Number(it.quantity);
+    });
+  });
+  const topIssued = Object.values(issueMap).sort((a,b)=>b.qty-a.qty).slice(0,5);
+
+  // Alerts
+  const lowList = Stock.getLowStockProducts().slice(0,5);
+  const outList = Stock.getOutOfStockProducts().slice(0,5);
+
+  // Chart data - last 7 days
+  const days = [];
+  const receivedData = [];
+  const issuedData = [];
+  const balanceData = [];
+  for(let i=6;i>=0;i--){
+    const d = new Date(); d.setDate(d.getDate()-i);
+    const key = d.toISOString().split('T')[0];
+    days.push(d.toLocaleDateString('ar-EG',{weekday:'short',day:'numeric'}));
+    const dayMoves = movements.filter(m=>m.date===key);
+    const rec = dayMoves.filter(m=>['استلام','مرتجع'].includes(m.type)).reduce((s,m)=>s+Number(m.quantity||0),0);
+    const iss = dayMoves.filter(m=>m.type==='صرف').reduce((s,m)=>s+Number(m.quantity||0),0);
+    receivedData.push(rec);
+    issuedData.push(iss);
+    balanceData.push(rec-iss);
+  }
+
+  return `
+  <div class="page">
+    <div class="page-header">
+      <div>
+        <h4><i class="fas fa-home" style="color:var(--primary)"></i> لوحة التحكم</h4>
+        <p>نظرة شاملة على حالة المخزن والحركات</p>
+      </div>
+      <div class="no-print">
+        <span class="badge bg-light text-dark p-2" style="font-size:12px">
+          <i class="far fa-calendar"></i> ${new Date().toLocaleDateString('ar-EG',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}
+        </span>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-md-3">${UI.statCard('fa-boxes-stacked','bg-grad-blue',totalProducts,'إجمالي الأصناف')}</div>
+      <div class="col-6 col-md-3">${UI.statCard('fa-cubes','bg-grad-teal',totalQty.toLocaleString(),'إجمالي الكميات')}</div>
+      <div class="col-6 col-md-3">${UI.statCard('fa-triangle-exclamation','bg-grad-orange',lowStock,'أصناف منخفضة')}</div>
+      <div class="col-6 col-md-3">${UI.statCard('fa-circle-xmark','bg-grad-red',outStock,'أصناف نافدة')}</div>
+    </div>
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-md-3">${UI.statCard('fa-truck-ramp-box','bg-grad-green',totalReceipts,'عمليات الاستلام')}</div>
+      <div class="col-6 col-md-3">${UI.statCard('fa-dolly','bg-grad-purple',totalIssues,'عمليات الصرف')}</div>
+      <div class="col-6 col-md-3">${UI.statCard('fa-users','bg-grad-blue',users.length,'عدد الأشخاص')}</div>
+      <div class="col-6 col-md-3">${UI.statCard('fa-user-check','bg-grad-orange',uniqueIssuers,'سحبوا مواد')}</div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-lg-8">
+        <div class="content-card">
+          <div class="card-head">
+            <h6><i class="fas fa-chart-line"></i> حركة المخزون (آخر 7 أيام)</h6>
+            <div>
+              <span class="badge badge-success"><i class="fas fa-circle"></i> وارد</span>
+              <span class="badge badge-danger"><i class="fas fa-circle"></i> منصرف</span>
+              <span class="badge badge-info"><i class="fas fa-circle"></i> صافي</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="chart-container"><canvas id="mainChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="content-card">
+          <div class="card-head"><h6><i class="fas fa-bell"></i> تنبيهات المخزون</h6></div>
+          <div class="card-body" style="max-height:360px;overflow-y:auto">
+            ${outList.length ? outList.map(p=>`
+              <div class="alert-item alert-danger-item">
+                <i class="fas fa-circle-xmark"></i>
+                <div><strong>${Utils.escape(p.name)}</strong><br><small>الصنف نافد تمامًا - ${p.code}</small></div>
+              </div>
+            `).join('') : ''}
+            ${lowList.length ? lowList.map(p=>`
+              <div class="alert-item alert-warning-item">
+                <i class="fas fa-triangle-exclamation"></i>
+                <div><strong>${Utils.escape(p.name)}</strong><br><small>متبقي ${p.currentQty} ${p.unit} (الحد الأدنى: ${p.minQty})</small></div>
+              </div>
+            `).join('') : ''}
+            ${!lowList.length && !outList.length ? UI.emptyState('لا توجد تنبيهات','المخزون في حالة جيدة','fa-check-circle') : ''}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mt-1">
+      <div class="col-lg-7">
+        <div class="content-card">
+          <div class="card-head"><h6><i class="fas fa-clock-rotate-left"></i> آخر الحركات</h6></div>
+          <div class="card-body p-0">
+            ${recentMovements.length ? `
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead><tr><th>التاريخ</th><th>النوع</th><th>الصنف</th><th>الكمية</th><th>الشخص</th></tr></thead>
+                <tbody>
+                  ${recentMovements.map(m=>`
+                    <tr>
+                      <td><small>${Utils.formatDate(m.date)}</small></td>
+                      <td><span class="badge ${m.type==='استلام'?'badge-success':m.type==='صرف'?'badge-danger':m.type==='مرتجع'?'badge-info':'badge-warning'}">${m.type}</span></td>
+                      <td><strong>${Utils.escape(m.productName)}</strong></td>
+                      <td>${m.quantity} ${Utils.escape(m.unit)}</td>
+                      <td><small>${Utils.escape(m.person||'-')}</small></td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>` : UI.emptyState('لا توجد حركات','ابدأ بتسجيل أول عملية')}
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-5">
+        <div class="content-card">
+          <div class="card-head"><h6><i class="fas fa-fire"></i> أكثر الأصناف سحبًا</h6></div>
+          <div class="card-body p-0">
+            ${topIssued.length ? `
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead><tr><th>#</th><th>الصنف</th><th>إجمالي المسحوب</th></tr></thead>
+                <tbody>
+                  ${topIssued.map((t,i)=>`
+                    <tr>
+                      <td><span class="badge bg-primary">${i+1}</span></td>
+                      <td><strong>${Utils.escape(t.name)}</strong></td>
+                      <td>${t.qty} ${Utils.escape(t.unit)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>` : UI.emptyState('لا توجد عمليات صرف بعد','')}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  `;
+};
+
+Pages.dashboard.after = () => {
+  const ctx = document.getElementById('mainChart');
+  if(!ctx) return;
+  const products = DB.getProducts();
+  const movements = DB.getMovements();
+  const days=[], receivedData=[], issuedData=[], balanceData=[];
+  for(let i=6;i>=0;i--){
+    const d = new Date(); d.setDate(d.getDate()-i);
+    const key = d.toISOString().split('T')[0];
+    days.push(d.toLocaleDateString('ar-EG',{weekday:'short',day:'numeric'}));
+    const dayMoves = movements.filter(m=>m.date===key);
+    const rec = dayMoves.filter(m=>['استلام','مرتجع'].includes(m.type)).reduce((s,m)=>s+Number(m.quantity||0),0);
+    const iss = dayMoves.filter(m=>m.type==='صرف').reduce((s,m)=>s+Number(m.quantity||0),0);
+    receivedData.push(rec); issuedData.push(iss); balanceData.push(rec-iss);
+  }
+  new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:days,
+      datasets:[
+        {label:'وارد',data:receivedData,backgroundColor:'rgba(39,174,96,.75)',borderRadius:6},
+        {label:'منصرف',data:issuedData,backgroundColor:'rgba(231,76,60,.75)',borderRadius:6},
+        {label:'صافي',data:balanceData,type:'line',borderColor:'#3498db',backgroundColor:'rgba(52,152,219,.15)',tension:.35,fill:true,borderWidth:3,pointRadius:4,pointBackgroundColor:'#3498db'}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{font:{family:'Cairo',weight:'600'}}}},
+      scales:{y:{beginAtZero:true,ticks:{font:{family:'Cairo'}}},x:{ticks:{font:{family:'Cairo'}}}}
+    }
+  });
+};
+
+/* ---------- PRODUCTS ---------- */
+Pages.products = () => {
+  const products = DB.getProducts();
+  const settings = DB.getSettings();
+  return `
+  <div class="page">
+    <div class="page-header">
+      <div><h4><i class="fas fa-boxes-stacked" style="color:var(--primary)"></i> الأصناف والمخزون</h4><p>إدارة كاملة لأصناف المخزن</p></div>
+      <div class="no-print">
+        ${Auth.can('add')?`<button class="btn btn-primary" onclick="Products.openForm()"><i class="fas fa-plus"></i> إضافة صنف</button>`:''}
+      </div>
+    </div>
+    <div class="content-card">
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-md-4"><select class="form-select" id="filterCategory" onchange="Products.render()">
+            <option value="">كل التصنيفات</option>
+            ${settings.categories.map(c=>`<option value="${c}">${c}</option>`).join('')}
+          </select></div>
+          <div class="col-md-4"><select class="form-select" id="filterStatus" onchange="Products.render()">
+            <option value="">كل الحالات</option>
+            <option value="available">🟢 متوفر</option>
+            <option value="low">🟡 منخفض</option>
+            <option value="out">🔴 نافد</option>
+          </select></div>
+        </div>
+        <div class="table-responsive">
+          <table id="productsTable" class="table table-hover" style="width:100%">
+            <thead><tr>
+              <th>الكود</th><th>الاسم</th><th>التصنيف</th><th>الوحدة</th>
+              <th>الرصيد</th><th>الحد الأدنى</th><th>الموقع</th><th>الحالة</th><th>إجراءات</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>`;
+};
+
+Pages.products.after = () => { Products.render(); };
+
+const Products = {
+  dt:null,
+  render(){
+    const products = DB.getProducts();
+    const catFilter = document.getElementById('filterCategory')?.value || '';
+    const statusFilter = document.getElementById('filterStatus')?.value || '';
+    let list = products.filter(p=>!catFilter || p.category===catFilter);
+    if(statusFilter){
+      list = list.filter(p=>{
+        const qty = Number(p.currentQty||0), min = Number(p.minQty||0);
+        if(statusFilter==='out') return qty<=0;
+        if(statusFilter==='low') return qty>0 && qty<=min;
+        if(statusFilter==='available') return qty>min;
+        return true;
+      });
+    }
+    if(this.dt){ this.dt.destroy(); }
+    const tbody = document.querySelector('#productsTable tbody');
+    tbody.innerHTML = list.map(p=>{
+      const st = Stock.getStatus(p);
+      return `<tr>
+        <td><strong>${Utils.escape(p.code)}</strong></td>
+        <td>${Utils.escape(p.name)}<br><small class="text-muted">${Utils.escape(p.description||'')}</small></td>
+        <td><span class="badge badge-info">${Utils.escape(p.category)}</span></td>
+        <td>${Utils.escape(p.unit)}</td>
+        <td><strong>${p.currentQty}</strong></td>
+        <td>${p.minQty}</td>
+        <td><small>${Utils.escape(p.storeLocation||'-')}</small></td>
+        <td><span class="badge-status ${st.class}">${st.icon} ${st.label}</span></td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-action btn-info text-white" title="عرض" onclick="Products.view('${p.id}')"><i class="fas fa-eye"></i></button>
+          ${Auth.can('edit')?`<button class="btn btn-action btn-warning text-white" title="تعديل" onclick="Products.openForm('${p.id}')"><i class="fas fa-edit"></i></button>`:''}
+          ${Auth.can('receive')?`<button class="btn btn-action btn-success" title="إضافة كمية" onclick="Products.openReceive('${p.id}')"><i class="fas fa-plus"></i></button>`:''}
+          ${Auth.can('issue')?`<button class="btn btn-action btn-danger" title="صرف كمية" onclick="Products.openIssue('${p.id}')"><i class="fas fa-minus"></i></button>`:''}
+          ${Auth.can('view')?`<button class="btn btn-action btn-secondary" title="سجل الحركة" onclick="Products.history('${p.id}')"><i class="fas fa-history"></i></button>`:''}
+          ${Auth.can('delete')?`<button class="btn btn-action btn-outline-danger" title="حذف" onclick="Products.remove('${p.id}')"><i class="fas fa-trash"></i></button>`:''}
+        </td>
+      </tr>`;
+    }).join('');
+    this.dt = $('#productsTable').DataTable({
+      pageLength:10, lengthMenu:[[10,25,50,-1],[10,25,50,'الكل']],
+      language:{ search:'بحث:', lengthMenu:'عرض _MENU_', info:'صفحة _PAGE_ من _PAGES_', infoEmpty:'لا توجد سجلات', zeroRecords:'لا توجد نتائج', paginate:{next:'التالي',previous:'السابق'} },
+      columnDefs:[{targets:[8],orderable:false}]
+    });
+  },
+  openForm(id){
+    if(!Auth.requirePerm(id?'edit':'add')) return;
+    const settings = DB.getSettings();
+    const p = id ? DB.getProducts().find(x=>x.id===id) : null;
+    Swal.fire({
+      title: p?'تعديل صنف':'إضافة صنف جديد',
+      html:`
+      <div class="row g-2 text-end" style="font-size:13px">
+        <div class="col-6"><label class="form-label">كود الصنف *</label><input id="pCode" class="form-control" value="${p?Utils.escape(p.code):''}"></div>
+        <div class="col-6"><label class="form-label">اسم الصنف *</label><input id="pName" class="form-control" value="${p?Utils.escape(p.name):''}"></div>
+        <div class="col-6"><label class="form-label">التصنيف *</label><select id="pCat" class="form-select">
+          ${settings.categories.map(c=>`<option ${p&&p.category===c?'selected':''}>${c}</option>`).join('')}
+        </select></div>
+        <div class="col-6"><label class="form-label">الوحدة *</label><select id="pUnit" class="form-select">
+          ${settings.units.map(u=>`<option ${p&&p.unit===u?'selected':''}>${u}</option>`).join('')}
+        </select></div>
+        <div class="col-12"><label class="form-label">الوصف</label><input id="pDesc" class="form-control" value="${p?Utils.escape(p.description||''):''}"></div>
+        <div class="col-4"><label class="form-label">الكمية الحالية</label><input id="pQty" type="number" class="form-control" value="${p?p.currentQty:0}"></div>
+        <div class="col-4"><label class="form-label">الحد الأدنى *</label><input id="pMin" type="number" class="form-control" value="${p?p.minQty:10}"></div>
+        <div class="col-4"><label class="form-label">مكان التخزين</label><input id="pLoc" class="form-control" value="${p?Utils.escape(p.storeLocation||''):''}"></div>
+        <div class="col-6"><label class="form-label">المورد</label><input id="pSup" class="form-control" value="${p?Utils.escape(p.supplier||''):''}"></div>
+        <div class="col-6"><label class="form-label">رقم أمر التوريد</label><input id="pPO" class="form-control" value="${p?Utils.escape(p.poNumber||''):''}"></div>
+        <div class="col-12"><label class="form-label">ملاحظات</label><textarea id="pNotes" class="form-control" rows="2">${p?Utils.escape(p.notes||''):''}</textarea></div>
+      </div>`,
+      width:'700px',
+      showCancelButton:true,
+      confirmButtonText: p?'حفظ التعديلات':'إضافة',
+      cancelButtonText:'إلغاء',
+      confirmButtonColor:'#0f4c81',
+      preConfirm:()=>{
+        const code=document.getElementById('pCode').value.trim();
+        const name=document.getElementById('pName').value.trim();
+        const min=Number(document.getElementById('pMin').value);
+        if(!code || !name) { Swal.showValidationMessage('يرجى إدخال الكود والاسم'); return false; }
+        if(isNaN(min) || min<0){ Swal.showValidationMessage('الحد الأدنى غير صحيح'); return false; }
+        return {
+          code, name,
+          category:document.getElementById('pCat').value,
+          unit:document.getElementById('pUnit').value,
+          description:document.getElementById('pDesc').value.trim(),
+          currentQty:Number(document.getElementById('pQty').value)||0,
+          minQty:min,
+          storeLocation:document.getElementById('pLoc').value.trim(),
+          supplier:document.getElementById('pSup').value.trim(),
+          poNumber:document.getElementById('pPO').value.trim(),
+          notes:document.getElementById('pNotes').value.trim()
+        };
+      }
+    }).then(res=>{
+      if(!res.isConfirmed) return;
+      Utils.showLoading();
+      setTimeout(()=>{
+        const products = DB.getProducts();
+        if(p){
+          const idx = products.findIndex(x=>x.id===id);
+          const diff = res.value.currentQty - Number(products[idx].currentQty||0);
+          products[idx] = {...products[idx], ...res.value};
+          DB.saveProducts(products);
+          if(diff!==0){
+            Stock.addMovement({
+              type: diff>0?'تعديل-زيادة':'تعديل-نقص',
+              productId:id, quantity:Math.abs(diff), person:Auth.getCurrent().name,
+              notes:'تعديل يدوي للكمية', refNumber:'ADJ-'+Date.now()
+            });
+          }
+          Utils.hideLoading();
+          Utils.toast('success','تم حفظ التعديلات');
+        } else {
+          const newP = {id:DB.uid('PRD'), ...res.value, dateAdded:Utils.today()};
+          products.push(newP);
+          DB.saveProducts(products);
+          if(newP.currentQty>0){
+            Stock.addMovement({
+              type:'استلام', productId:newP.id, quantity:newP.currentQty,
+              person:Auth.getCurrent().name, notes:'رصيد افتتاحي', refNumber:'INIT'
+            });
+          }
+          Utils.hideLoading();
+          Utils.toast('success','تم إضافة الصنف');
+        }
+        Products.render();
+      },400);
+    });
+  },
+  view(id){
+    const p = DB.getProducts().find(x=>x.id===id);
+    if(!p) return;
+    const st = Stock.getStatus(p);
+    Swal.fire({
+      title:'تفاصيل الصنف',
+      html:`
+      <div class="text-end" style="font-size:13.5px">
+        <table class="table table-sm table-bordered">
+          <tr><th width="35%">الكود</th><td>${Utils.escape(p.code)}</td></tr>
+          <tr><th>الاسم</th><td>${Utils.escape(p.name)}</td></tr>
+          <tr><th>التصنيف</th><td>${Utils.escape(p.category)}</td></tr>
+          <tr><th>الوصف</th><td>${Utils.escape(p.description||'-')}</td></tr>
+          <tr><th>الوحدة</th><td>${Utils.escape(p.unit)}</td></tr>
+          <tr><th>الرصيد الحالي</th><td><strong style="color:var(--primary);font-size:16px">${p.currentQty}</strong></td></tr>
+          <tr><th>الحد الأدنى</th><td>${p.minQty}</td></tr>
+          <tr><th>الحالة</th><td><span class="badge-status ${st.class}">${st.icon} ${st.label}</span></td></tr>
+          <tr><th>مكان التخزين</th><td>${Utils.escape(p.storeLocation||'-')}</td></tr>
+          <tr><th>المورد</th><td>${Utils.escape(p.supplier||'-')}</td></tr>
+          <tr><th>رقم أمر التوريد</th><td>${Utils.escape(p.poNumber||'-')}</td></tr>
+          <tr><th>تاريخ الإضافة</th><td>${Utils.formatDate(p.dateAdded)}</td></tr>
+          <tr><th>ملاحظات</th><td>${Utils.escape(p.notes||'-')}</td></tr>
+        </table>
+      </div>`,
+      width:'600px',
+      confirmButtonText:'إغلاق',
+      confirmButtonColor:'#0f4c81'
+    });
+  },
+  openReceive(id){
+    if(!Auth.requirePerm('receive')) return;
+    const p = DB.getProducts().find(x=>x.id===id);
+    if(!p) return;
+    Swal.fire({
+      title:`إضافة كمية - ${Utils.escape(p.name)}`,
+      html:`
+      <div class="text-end" style="font-size:13px">
+        <div class="alert alert-info py-2">الرصيد الحالي: <strong>${p.currentQty} ${p.unit}</strong></div>
+        <label class="form-label">الكمية المستلمة *</label>
+        <input id="addQty" type="number" class="form-control mb-2" min="1">
+        <label class="form-label">رقم إذن الاستلام</label>
+        <input id="rcvNo" class="form-control mb-2" value="${DB.uid('RCV')}">
+        <label class="form-label">ملاحظات</label>
+        <input id="rcvNotes" class="form-control">
+      </div>`,
+      showCancelButton:true,
+      confirmButtonText:'إضافة',
+      cancelButtonText:'إلغاء',
+      confirmButtonColor:'#27ae60',
+      preConfirm:()=>{
+        const qty = Number(document.getElementById('addQty').value);
+        if(!qty || qty<=0){ Swal.showValidationMessage('الكمية غير صحيحة'); return false; }
+        return {qty, rcvNo:document.getElementById('rcvNo').value, notes:document.getElementById('rcvNotes').value};
+      }
+    }).then(r=>{
+      if(!r.isConfirmed) return;
+      Utils.showLoading();
+      setTimeout(()=>{
+        Stock.updateProductQty(id, r.value.qty);
+        Stock.addMovement({
+          type:'استلام', productId:id, quantity:r.value.qty,
+          person:Auth.getCurrent().name, refNumber:r.value.rcvNo, notes:r.value.notes||'إضافة كمية'
+        });
+        Utils.hideLoading();
+        Utils.toast('success','تمت إضافة الكمية');
+        Products.render();
+      },300);
+    });
+  },
+  openIssue(id){
+    if(!Auth.requirePerm('issue')) return;
+    const p = DB.getProducts().find(x=>x.id===id);
+    if(!p) return;
+    const users = DB.getUsers().filter(u=>u.status==='نشط');
+    const projects = DB.getProjects().filter(x=>x.status==='قيد التنفيذ');
+    Swal.fire({
+      title:`صرف كمية - ${Utils.escape(p.name)}`,
+      html:`
+      <div class="text-end" style="font-size:13px">
+        <div class="alert alert-info py-2">المتاح: <strong>${p.currentQty} ${p.unit}</strong></div>
+        <div class="row g-2">
+          <div class="col-6"><label class="form-label">الشخص *</label>
+            <select id="issPerson" class="form-select">
+              <option value="">-- اختر --</option>
+              ${users.map(u=>`<option value="${Utils.escape(u.name)}">${Utils.escape(u.name)}</option>`).join('')}
+              <option value="__other__">أخرى</option>
+            </select>
+          </div>
+          <div class="col-6"><label class="form-label">المشروع</label>
+            <select id="issProject" class="form-select">
+              <option value="">-- اختر --</option>
+              ${projects.map(pr=>`<option value="${Utils.escape(pr.name)}">${Utils.escape(pr.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="col-6"><label class="form-label">الكمية *</label><input id="issQty" type="number" class="form-control" min="1"></div>
+          <div class="col-6"><label class="form-label">سبب السحب</label><input id="issReason" class="form-control"></div>
+          <div class="col-12"><label class="form-label">ملاحظات</label><input id="issNotes" class="form-control"></div>
+        </div>
+      </div>`,
+      showCancelButton:true,
+      confirmButtonText:'صرف',
+      cancelButtonText:'إلغاء',
+      confirmButtonColor:'#e74c3c',
+      didOpen:()=>{
+        document.getElementById('issPerson').addEventListener('change', e=>{
+          if(e.target.value==='__other__'){
+            Swal.fire({input:'text',title:'اسم الشخص',showCancelButton:true}).then(r=>{
+              if(r.isConfirmed && r.value){
+                const opt = document.createElement('option');
+                opt.value = r.value; opt.textContent = r.value; opt.selected = true;
+                e.target.insertBefore(opt, e.target.firstChild);
+              } else { e.target.value=''; }
+            });
+          }
+        });
+      },
+      preConfirm:()=>{
+        const person = document.getElementById('issPerson').value;
+        const qty = Number(document.getElementById('issQty').value);
+        if(!person || person==='__other__'){ Swal.showValidationMessage('يرجى اختيار الشخص'); return false; }
+        if(!qty || qty<=0){ Swal.showValidationMessage('الكمية غير صحيحة'); return false; }
+        if(qty > Number(p.currentQty)){ Swal.showValidationMessage('الكمية الموجودة في المخزن غير كافية'); return false; }
+        return {
+          person, qty,
+          project:document.getElementById('issProject').value,
+          reason:document.getElementById('issReason').value,
+          notes:document.getElementById('issNotes').value
+        };
+      }
+    }).then(r=>{
+      if(!r.isConfirmed) return;
+      Utils.showLoading();
+      setTimeout(()=>{
+        try{
+          Stock.updateProductQty(id, -r.value.qty);
+          Stock.addMovement({
+            type:'صرف', productId:id, quantity:r.value.qty,
+            person:r.value.person, project:r.value.project,
+            refNumber:DB.uid('ISS'), notes:r.value.reason||'صرف'
+          });
+          Utils.hideLoading();
+          Utils.toast('success','تم الصرف بنجاح');
+          Products.render();
+        }catch(err){ Utils.hideLoading(); Swal.fire('خطأ',err.message,'error'); }
+      },300);
+    });
+  },
+  history(id){
+    const p = DB.getProducts().find(x=>x.id===id);
+    if(!p) return;
+    const moves = DB.getMovements().filter(m=>m.productId===id).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+    Swal.fire({
+      title:`سجل حركة: ${Utils.escape(p.name)}`,
+      html: moves.length ? `
+      <div style="max-height:400px;overflow-y:auto;text-align:right">
+        <table class="table table-sm table-bordered" style="font-size:12.5px">
+          <thead><tr><th>التاريخ</th><th>النوع</th><th>الكمية</th><th>الرصيد</th><th>الشخص</th></tr></thead>
+          <tbody>
+            ${moves.map(m=>`<tr>
+              <td>${Utils.formatDate(m.date)}<br><small>${m.time||''}</small></td>
+              <td><span class="badge ${m.type==='استلام'?'badge-success':m.type==='صرف'?'badge-danger':m.type==='مرتجع'?'badge-info':'badge-warning'}">${m.type}</span></td>
+              <td>${m.quantity} ${Utils.escape(m.unit)}</td>
+              <td><strong>${m.balanceAfter}</strong></td>
+              <td><small>${Utils.escape(m.person||'-')}</small></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>` : '<p>لا توجد حركات</p>',
+      width:'700px',
+      confirmButtonText:'إغلاق',
+      confirmButtonColor:'#0f4c81'
+    });
+  },
+  remove(id){
+    if(!Auth.requirePerm('delete')) return;
+    const p = DB.getProducts().find(x=>x.id===id);
+    if(!p) return;
+    Utils.confirmDelete(`سيتم حذف الصنف "${p.name}" بشكل نهائي`).then(r=>{
+      if(!r.isConfirmed) return;
+      const products = DB.getProducts().filter(x=>x.id!==id);
+      DB.saveProducts(products);
+      Utils.toast('success','تم حذف الصنف');
+      Products.render();
+    });
+  }
+};
+
+/* ---------- RECEIPTS ---------- */
+Pages.receipts = () => {
+  const receipts = DB.getReceipts().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  return `
+  <div class="page">
+    <div class="page-header">
+      <div><h4><i class="fas fa-truck-ramp-box" style="color:var(--success)"></i> استلام بضاعة</h4><p>تسجيل عمليات استلام المواد من الموردين</p></div>
+      <div class="no-print">${Auth.can('receive')?`<button class="btn btn-success" onclick="Receipts.openForm()"><i class="fas fa-plus"></i> استلام جديد</button>`:''}</div>
+    </div>
+    <div class="content-card">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table id="receiptsTable" class="table table-hover" style="width:100%">
+            <thead><tr><th>رقم الإذن</th><th>التاريخ</th><th>المورد</th><th>أمر الشراء</th><th>عدد الأصناف</th><th>المستلم</th><th>إجراءات</th></tr></thead>
+            <tbody>
+              ${receipts.map(r=>`
+                <tr>
+                  <td><strong>${Utils.escape(r.receiptNo)}</strong></td>
+                  <td>${Utils.formatDate(r.date)}</td>
+                  <td>${Utils.escape(r.supplier||'-')}</td>
+                  <td>${Utils.escape(r.poNumber||'-')}</td>
+                  <td><span class="badge badge-info">${r.items.length}</span></td>
+                  <td>${Utils.escape(r.receiver||'-')}</td>
+                  <td>
+                    <button class="btn btn-action btn-info text-white" onclick="Receipts.view('${r.id}')"><i class="fas fa-eye"></i></button>
+                    ${Auth.can('delete')?`<button class="btn btn-action btn-outline-danger" onclick="Receipts.remove('${r.id}')"><i class="fas fa-trash"></i></button>`:''}
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>`;
+};
+
+Pages.receipts.after = () => {
+  $('#receiptsTable').DataTable({
+    pageLength:10, language:{search:'بحث:',lengthMenu:'عرض _MENU_',info:'صفحة _PAGE_ من _PAGES_',zeroRecords:'لا توجد سجلات',paginate:{next:'التالي',previous:'السابق'}}
+  });
+};
+
+const Receipts = {
+  openForm(){
+    if(!Auth.requirePerm('receive')) return;
+    const products = DB.getProducts();
+    const users = DB.getUsers();
+    Swal.fire({
+      title:'استلام بضاعة جديدة',
+      html:`
+      <div class="text-end" style="font-size:13px">
+        <div class="row g-2">
+          <div class="col-6"><label class="form-label">رقم إذن الاستلام *</label><input id="rNo" class="form-control" value="${DB.uid('RCV')}"></div>
+          <div class="col-6"><label class="form-label">التاريخ *</label><input id="rDate" type="date" class="form-control" value="${Utils.today()}"></div>
+          <div class="col-6"><label class="form-label">اسم المورد *</label><input id="rSupplier" class="form-control"></div>
+          <div class="col-6"><label class="form-label">رقم أمر الشراء</label><input id="rPO" class="form-control"></div>
+          <div class="col-6"><label class="form-label">اسم الشخص المستلم *</label>
+            <select id="rReceiver" class="form-select">
+              <option value="">-- اختر --</option>
+              ${users.map(u=>`<option>${Utils.escape(u.name)}</option>`).join('')}
+              <option value="${Auth.getCurrent().name}">${Auth.getCurrent().name}</option>
+            </select>
+          </div>
+          <div class="col-6"><label class="form-label">رقم السيارة</label><input id="rCar" class="form-control"></div>
+          <div class="col-12"><label class="form-label">مكان التخزين</label><input id="rLoc" class="form-control"></div>
+          <div class="col-12"><label class="form-label">ملاحظات</label><input id="rNotes" class="form-control"></div>
+        </div>
+        <hr>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <strong>الأصناف المستلمة</strong>
+          <button type="button" class="btn btn-sm btn-primary" onclick="Receipts.addRow()"><i class="fas fa-plus"></i> إضافة صنف</button>
+        </div>
+        <div id="rItems"></div>
+      </div>`,
+      width:'900px',
+      showCancelButton:true,
+      confirmButtonText:'حفظ الاستلام',
+      cancelButtonText:'إلغاء',
+      confirmButtonColor:'#27ae60',
+      didOpen:()=>{ Receipts.addRow(); },
+      preConfirm:()=>{
+        const receiptNo=document.getElementById('rNo').value.trim();
+        const date=document.getElementById('rDate').value;
+        const supplier=document.getElementById('rSupplier').value.trim();
+        const receiver=document.getElementById('rReceiver').value;
+        if(!receiptNo||!date||!supplier||!receiver){ Swal.showValidationMessage('يرجى إكمال البيانات الأساسية'); return false; }
+        const items = [];
+        document.querySelectorAll('#rItems .item-row').forEach(row=>{
+          const pid = row.querySelector('.rProduct').value;
+          const qty = Number(row.querySelector('.rQty').value);
+          const loc = row.querySelector('.rLoc')?.value || '';
+          if(pid && qty>0) items.push({productId:pid, quantity:qty, storeLocation:loc});
+        });
+        if(items.length===0){ Swal.showValidationMessage('يرجى إضافة صنف واحد على الأقل'); return false; }
+        return {
+          receiptData:{receiptNo,date,supplier,poNumber:document.getElementById('rPO').value.trim(),receiver,carNumber:document.getElementById('rCar').value.trim(),storeLocation:document.getElementById('rLoc').value.trim(),notes:document.getElementById('rNotes').value.trim()},
+          items
+        };
+      }
+    }).then(r=>{
+      if(!r.isConfirmed) return;
+      Utils.showLoading();
+      setTimeout(()=>{
+        try{
+          Stock.receiveStock(r.value);
+          Utils.hideLoading();
+          Swal.fire({icon:'success',title:'تم الحفظ',text:'تم تسجيل الاستلام وتحديث المخزون',timer:1800,showConfirmButton:false});
+          Router.go('receipts');
+        }catch(err){ Utils.hideLoading(); Swal.fire('خطأ',err.message,'error'); }
+      },400);
+    });
+  },
+  rowIdx:0,
+  addRow(){
+    const products = DB.getProducts();
+    this.rowIdx++;
+    const div = document.createElement('div');
+    div.className = 'item-row';
+    div.innerHTML = `
+      <button type="button" class="remove-row" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+      <div class="row g-2">
+        <div class="col-md-6"><label class="form-label">الصنف *</label>
+          <select class="form-select rProduct">${products.map(p=>`<option value="${p.id}">${Utils.escape(p.code)} - ${Utils.escape(p.name)} (${p.currentQty} ${p.unit})</option>`).join('')}</select>
+        </div>
+        <div class="col-md-3"><label class="form-label">الكمية *</label><input type="number" class="form-control rQty" min="1" value="1"></div>
+        <div class="col-md-3"><label class="form-label">مكان التخزين</label><input class="form-control rLoc"></div>
+      </div>`;
+    document.getElementById('rItems').appendChild(div);
+  },
+  view(id){
+    const r = DB.getReceipts().find(x=>x.id===id);
+    if(!r) return;
+    Swal.fire({
+      title:`إذن استلام: ${Utils.escape(r.receiptNo)}`,
+      html:`
+      <div class="text-end" style="font-size:13px">
+        <table class="table table-sm table-bordered">
+          <tr><th width="35%">التاريخ</th><td>${Utils.formatDate(r.date)}</td></tr>
+          <tr><th>المورد</th><td>${Utils.escape(r.supplier||'-')}</td></tr>
+          <tr><th>أمر الشراء</th><td>${Utils.escape(r.poNumber||'-')}</td></tr>
+          <tr><th>المستلم</th><td>${Utils.escape(r.receiver||'-')}</td></tr>
+          <tr><th>رقم السيارة</th><td>${Utils.escape(r.carNumber||'-')}</td></tr>
+          <tr><th>ملاحظات</th><td>${Utils.escape(r.notes||'-')}</td></tr>
+        </table>
+        <h6 class="mt-3">الأصناف:</h6>
+        <table class="table table-sm table-bordered">
+          <thead><tr><th>الصنف</th><th>الكمية</th><th>الرصيد قبل</th><th>الرصيد بعد</th></tr></thead>
+          <tbody>${r.items.map(it=>`<tr><td>${Utils.escape(it.productName)}</td><td>${it.quantity} ${Utils.escape(it.unit)}</td><td>${it.before}</td><td>${it.after}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>`,
+      width:'700px', confirmButtonText:'إغلاق', confirmButtonColor:'#0f4c81'
+    });
+  },
+  remove(id){
+    if(!Auth.requirePerm('delete')) return;
+    Utils.confirmDelete('سيتم حذف إذن الاستلام (لن يؤثر على المخزون)').then(r=>{
+      if(!r.isConfirmed) return;
+      DB.saveReceipts(DB.getReceipts().filter(x=>x.id!==id));
+      Utils.toast('success','تم الحذف');
+      Router.go('receipts');
+    });
+  }
+};
+
+/* ---------- ISSUES ---------- */
+Pages.issues = () => {
+  const issues = DB.getIssues().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  return `
+  <div class="page">
+    <div class="page-header">
+      <div><h4><i class="fas fa-dolly" style="color:var(--danger)"></i> صرف بضاعة</h4><p>تسجيل عمليات صرف المواد من المخزن</p></div>
+      <div class="no-print">${Auth.can('issue')?`<button class="btn btn-danger" onclick="Issues.openForm()"><i class="fas fa-plus"></i> صرف جديد</button>`:''}</div>
+    </div>
+    <div class="content-card">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table id="issuesTable" class="table table-hover" style="width:100%">
+            <thead><tr><th>رقم الإذن</th><th>التاريخ</th><th>الشخص</th><th>المشروع</th><th>عدد الأصناف</th><th>إجراءات</th></tr></thead>
+            <tbody>
+              ${issues.map(i=>`
+                <tr>
+                  <td><strong>${Utils.escape(i.issueNo)}</strong></td>
+                  <td>${Utils.formatDate(i.date)} <small class="text-muted">${i.time||''}</small></td>
+                  <td>${Utils.escape(i.person||'-')}</td>
+                  <td>${Utils.escape(i.project||'-')}</td>
+                  <td><span class="badge badge-info">${i.items.length}</span></td>
+                  <td>
+                    <button class="btn btn-action btn-info text-white" onclick="Issues.view('${i.id}')"><i class="fas fa-eye"></i></button>
+                    ${Auth.can('delete')?`<button class="btn btn-action btn-outline-danger" onclick="Issues.remove('${i.id}')"><i class="fas fa-trash"></i></button>`:''}
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>`;
+};
+
+Pages.issues.after = () => {
+  $('#issuesTable').DataTable({
+    pageLength:10, language:{search:'بحث:',lengthMenu:'عرض _MENU_',info:'صفحة _PAGE_ من _PAGES_',zeroRecords:'لا توجد سجلات',paginate:{next:'التالي',previous:'السابق'}}
+  });
+};
+
+const Issues = {
+  openForm(){
+    if(!Auth.requirePerm('issue')) return;
+    const users = DB.getUsers().filter(u=>u.status==='نشط');
+    const projects = DB.getProjects().filter(p=>p.status==='قيد التنفيذ');
+    Swal.fire({
+      title:'صرف بضاعة جديدة',
+      html:`
+      <div class="text-end" style="font-size:13px">
+        <div class="row g-2">
+          <div class="col-6"><label class="form-label">رقم إذن الصرف *</label><input id="iNo" class="form-control" value="${DB.uid('ISS')}"></div>
+          <div class="col-6"><label class="form-label">التاريخ *</label><input id="iDate" type="date" class="form-control" value="${Utils.today()}"></div>
+          <div class="col-6"><label class="form-label">الشخص *</label>
+            <select id="iPerson" class="form-select">
+              <option value="">-- اختر --</option>
+              ${users.map(u=>`<option value="${Utils.escape(u.name)}" data-job="${Utils.escape(u.jobTitle||'')}" data-dept="${Utils.escape(u.department||'')}">${Utils.escape(u.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="col-6"><label class="form-label">المشروع *</label>
+            <select id="iProject" class="form-select">
+              <option value="">-- اختر --</option>
+              ${projects.map(p=>`<option value="${Utils.escape(p.name)}">${Utils.escape(p.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="col-4"><label class="form-label">الوظيفة</label><input id="iJob" class="form-control" readonly></div>
+          <div class="col-4"><label class="form-label">القسم</label><input id="iDept" class="form-control" readonly></div>
+          <div class="col-4"><label class="form-label">المنطقة</label><input id="iLoc" class="form-control"></div>
+          <div class="col-12"><label class="form-label">سبب السحب</label><input id="iReason" class="form-control"></div>
+          <div class="col-12"><label class="form-label">ملاحظات</label><input id="iNotes" class="form-control"></div>
+        </div>
+        <hr>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <strong>الأصناف المصروفة</strong>
+          <button type="button" class="btn btn-sm btn-danger" onclick="Issues.addRow()"><i class="fas fa-plus"></i> إضافة صنف</button>
+        </div>
+        <div id="iItems"></div>
+      </div>`,
+      width:'900px',
+      showCancelButton:true,
+      confirmButtonText:'صرف',
+      cancelButtonText:'إلغاء',
+      confirmButtonColor:'#e74c3c',
+      didOpen:()=>{
+        Issues.addRow();
+        document.getElementById('iPerson').addEventListener('change', e=>{
+          const opt = e.target.options[e.target.selectedIndex];
+          document.getElementById('iJob').value = opt.dataset.job||'';
+          document.getElementById('iDept').value = opt.dataset.dept||'';
+        });
+      },
+      preConfirm:()=>{
+        const person=document.getElementById('iPerson').value;
+        const project=document.getElementById('iProject').value;
+        const issueNo=document.getElementById('iNo').value.trim();
+        const date=document.getElementById('iDate').value;
+        if(!person||!project||!issueNo||!date){ Swal.showValidationMessage('يرجى إكمال البيانات الأساسية'); return false; }
+        const items = [];
+        document.querySelectorAll('#iItems .item-row').forEach(row=>{
+          const pid = row.querySelector('.iProduct').value;
+          const qty = Number(row.querySelector('.iQty').value);
+          if(pid && qty>0) items.push({productId:pid, quantity:qty});
+        });
+        if(items.length===0){ Swal.showValidationMessage('يرجى إضافة صنف واحد على الأقل'); return false; }
+        // تحقق من الكميات
+        const products = DB.getProducts();
+        for(const it of items){
+          const p = products.find(x=>x.id===it.productId);
+          if(Number(p.currentQty||0) < it.quantity){
+            Swal.showValidationMessage(`الكمية الموجودة في المخزن غير كافية للصنف: ${p.name} (المتاح: ${p.currentQty} ${p.unit})`);
+            return false;
+          }
+        }
+        return {
+          issueData:{
+            issueNo,date,time:new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}),
+            person, project,
+            jobTitle:document.getElementById('iJob').value,
+            department:document.getElementById('iDept').value,
+            location:document.getElementById('iLoc').value,
+            reason:document.getElementById('iReason').value,
+            notes:document.getElementById('iNotes').value
+          },
+          items
+        };
+      }
+    }).then(r=>{
+      if(!r.isConfirmed) return;
+      Utils.showLoading();
+      setTimeout(()=>{
+        try{
+          Stock.issueStock(r.value);
+          Utils.hideLoading();
+          Swal.fire({icon:'success',title:'تم الصرف',text:'تم تسجيل الصرف وتحديث المخزون',timer:1800,showConfirmButton:false});
+          Router.go('issues');
+        }catch(err){ Utils.hideLoading(); Swal.fire('خطأ',err.message,'error'); }
+      },400);
+    });
+  },
+  addRow(){
+    const products = DB.getProducts();
+    const div = document.createElement('div');
+    div.className='item-row';
+    div.innerHTML = `
+      <button type="button" class="remove-row" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+      <div class="row g-2">
+        <div class="col-md-7"><label class="form-label">الصنف *</label>
+          <select class="form-select iProduct">${products.map(p=>`<option value="${p.id}">${Utils.escape(p.code)} - ${Utils.escape(p.name)} (متاح: ${p.currentQty} ${p.unit})</option>`).join('')}</select>
+        </div>
+        <div class="col-md-5"><label class="form-label">الكمية *</label><input type="number" class="form-control iQty" min="1" value="1"></div>
+      </div>`;
+    document.getElementById('iItems').appendChild(div);
+  },
+  view(id){
+    const i = DB.getIssues().find(x=>x.id===id);
+    if(!i) return;
+    Swal.fire({
+      title:`إذن صرف: ${Utils.escape(i.issueNo)}`,
+      html:`
+      <div class="text-end" style="font-size:13px">
+        <table class="table table-sm table-bordered">
+          <tr><th width="35%">التاريخ</th><td>${Utils.formatDate(i.date)} ${i.time||''}</td></tr>
+          <tr><th>الشخص</th><td>${Utils.escape(i.person||'-')}</td></tr>
+          <tr><th>الوظيفة</th><td>${Utils.escape(i.jobTitle||'-')}</td></tr>
+          <tr><th>القسم</th><td>${Utils.escape(i.department||'-')}</td></tr>
+          <tr><th>المشروع</th><td>${Utils.escape(i.project||'-')}</td></tr>
+          <tr><th>المنطقة</th><td>${Utils.escape(i.location||'-')}</td></tr>
+          <tr><th>السبب</th><td>${Utils.escape(i.reason||'-')}</td></tr>
+          <tr><th>ملاحظات</th><td>${Utils.escape(i.notes||'-')}</td></tr>
+        </table>
+        <h6 class="mt-3">الأصناف المصروفة:</h6>
+        <table class="table table-sm table-bordered">
+          <thead><tr><th>الصنف</th><th>الكمية</th><th>الرصيد قبل</th><th>الرصيد بعد</th></tr></thead>
+          <tbody>${i.items.map(it=>`<tr><td>${Utils.escape(it.productName)}</td><td>${it.quantity} ${Utils.escape(it.unit)}</td><td>${it.before}</td><td>${it.after}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>`,
+      width:'700px', confirmButtonText:'إغلاق', confirmButtonColor:'#0f4c81'
+    });
+  },
+  remove(id){
+    if(!Auth.requirePerm('delete')) return;
+    Utils.confirmDelete('سيتم حذف إذن الصرف (لن يؤثر على المخزون)').then(r=>{
+      if(!r.isConfirmed) return;
+      DB.saveIssues(DB.getIssues().filter(x=>x.id!==id));
+      Utils.toast('success','تم الحذف');
+      Router.go('issues');
+    });
+  }
+};
+
+/* ---------- RETURNS ---------- */
+Pages.returns = () => {
+  const returns = DB.getReturns().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  return `
+  <div class="page">
+    <div class="page-header">
+      <div><h4><i class="fas fa-rotate-left" style="color:var(--info)"></i> المرتجعات</h4><p>إرجاع مواد إلى المخزن</p></div>
+      <div class="no-print">${Auth.can('return')?`<button class="btn btn-info text-white" onclick="Returns.openForm()"><i class="fas fa-plus"></i> مرتجع جديد</button>`:''}</div>
+    </div>
+    <div class="content-card">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table id="returnsTable" class="table table-hover" style="width:100%">
+            <thead><tr><th>رقم المرتجع</th><th>التاريخ</th><th>الشخص</th><th>المشروع</th><th>عدد الأصناف</th><th>إجراءات</th></tr></thead>
+            <tbody>
+              ${returns.map(r=>`
+                <tr>
+                  <td><strong>${Utils.escape(r.returnNo)}</strong></td>
+                  <td>${Utils.formatDate(r.date)}</td>
+                  <td>${Utils.escape(r.person||'-')}</td>
+                  <td>${Utils.escape(r.project||'-')}</td>
+                  <td><span class="badge badge-info">${r.items.length}</span></td>
+                  <td>
+                    <button class="btn btn-action btn-info text-white" onclick="Returns.view('${r.id}')"><i class="fas fa-eye"></i></button>
+                    ${Auth.can('delete')?`<button class="btn btn-action btn-outline-danger" onclick="Returns.remove('${r.id}')"><i class="fas fa-trash"></i></button>`:''}
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>`;
+};
+
+Pages.returns.after = () => {
+  $('#returnsTable').DataTable({
+    pageLength:10, language:{search:'بحث:',lengthMenu:'عرض _MENU_',info:'صفحة _PAGE_ من _PAGES_',zeroRecords:'لا توجد سجلات',paginate:{next:'التالي',previous:'السابق'}}
+  });
+};
+
+const Returns = {
+  openForm(){
+    if(!Auth.requirePerm('return')) return;
+    const users = DB.getUsers().filter(u=>u.status==='نشط');
+    const projects = DB.getProjects().filter(p=>p.status==='قيد التنفيذ');
+    Swal.fire({
+      title:'تسجيل مرتجع',
+      html:`
+      <div class="text-end" style="font-size:13px">
+        <div class="row g-2">
+          <div class="col-6"><label class="form-label">رقم المرتجع</label><input id="retNo" class="form-control" value="${DB.uid('RET')}"></div>
+          <div class="col-6"><label class="form-label">التاريخ *</label><input id="retDate" type="date" class="form-control" value="${Utils.today()}"></div>
+          <div class="col-6"><label class="form-label">الشخص *</label>
+            <select id="retPerson" class="form-select">
+              <option value="">-- اختر --</option>
+              ${users.map(u=>`<option>${Utils.escape(u.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="col-6"><label class="form-label">المشروع</label>
+            <select id="retProject" class="form-select">
+              <option value="">-- اختر --</option>
+              ${projects.map(p=>`<option>${Utils.escape(p.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="col-12"><label class="form-label">سبب الإرجاع</label><input id="retReason" class="form-control"></div>
+          <div class="col-12"><label class="form-label">ملاحظات</label><input id="retNotes" class="form-control"></div>
+        </div>
+        <hr>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <strong>الأصناف المرتجعة</strong>
+          <button type="button" class="btn btn-sm btn-info text-white" onclick="Returns.addRow()"><i class="fas fa-plus"></i> إضافة صنف</button>
+        </div>
+        <div id="retItems"></div>
+      </div>`,
+      width:'850px',
+      showCancelButton:true,
+      confirmButtonText:'حفظ المرتجع',
+      cancelButtonText:'إلغاء',
+      confirmButtonColor:'#3498db',
+      didOpen:()=>{ Returns.addRow(); },
+      preConfirm:()=>{
+        const person=document.getElementById('retPerson').value;
+        if(!person){ Swal.showValidationMessage('يرجى اختيار الشخص'); return false; }
+        const items=[];
+        document.querySelectorAll('#retItems .item-row').forEach(row=>{
+          const pid = row.querySelector('.retProduct').value;
+          const qty = Number(row.querySelector('.retQty').value);
+          if(pid && qty>0) items.push({productId:pid, quantity:qty});
+        });
+        if(items.length===0){ Swal.showValidationMessage('يرجى إضافة صنف واحد على الأقل'); return false; }
+        return {
+          returnNo:document.getElementById('retNo').value,
+          date:document.getElementById('retDate').value,
+          person,
+          project:document.getElementById('retProject').value,
+          reason:document.getElementById('retReason').value,
+          notes:document.getElementById('retNotes').value,
+          items
+        };
+      }
+    }).then(r=>{
+      if(!r.isConfirmed) return;
+      Utils.showLoading();
+      setTimeout(()=>{
+        try{
+          Stock.returnStock(r.value);
+          Utils.hideLoading();
+          Swal.fire({icon:'success',title:'تم الحفظ',text:'تم تسجيل المرتجع وتحديث المخزون',timer:1800,showConfirmButton:false});
+          Router.go('returns');
+        }catch(err){ Utils.hideLoading(); Swal.fire('خطأ',err.message,'error'); }
+      },400);
+    });
+  },
+  addRow(){
+    const products = DB.getProducts();
+    const div = document.createElement('div');
+    div.className='item-row';
+    div.innerHTML = `
+      <button type="button" class="remove-row" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>
+      <div class="row g-2">
+        <div class="col-md-7"><label class="form-label">الصنف *</label>
+          <select class="form-select retProduct">${products.map(p=>`<option value="${p.id}">${Utils.escape(p.code)} - ${Utils.escape(p.name)} (${p.unit})</option>`).join('')}</select>
+        </div>
+        <div class="col-md-5"><label class="form-label">الكمية *</label><input type="number" class="form-control retQty" min="1" value="1"></div>
+      </div>`;
+    document.getElementById('retItems').appendChild(div);
+  },
+  view(id){
+    const r = DB.getReturns().find(x=>x.id===id);
+    if(!r) return;
+    Swal.fire({
+      title:`مرتجع: ${Utils.escape(r.returnNo)}`,
+      html:`
+      <div class="text-end" style="font-size:13px">
+        <table class="table table-sm table-bordered">
+          <tr><th width="35%">التاريخ</th><td>${Utils.formatDate(r.date)}</td></tr>
+          <tr><th>الشخص</th><td>${Utils.escape(r.person||'-')}</td></tr>
+          <tr><th>المشروع</th><td>${Utils.escape(r.project||'-')}</td></tr>
+          <tr><th>السبب</th><td>${Utils.escape(r.reason||'-')}</td></tr>
+          <tr><th>ملاحظات</th><td>${Utils.escape(r.notes||'-')}</td></tr>
+        </table>
+        <h6 class="mt-3">الأصناف المرتجعة:</h6>
+        <table class="table table-sm table-bordered">
+          <thead><tr><th>الصنف</th><th>الكمية</th><th>الرصيد قبل</th><th>الرصيد بعد</th></tr></thead>
+          <tbody>${r.items.map(it=>`<tr><td>${Utils.escape(it.productName)}</td><td>${it.quantity} ${Utils.escape(it.unit)}</td><td>${it.before}</td><td>${it.after}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>`,
+      width:'700px', confirmButtonText:'إغلاق', confirmButtonColor:'#0f4c81'
+    });
+  },
+  remove(id){
+    if(!Auth.requirePerm('delete')) return;
+    Utils.confirmDelete('سيتم حذف المرتجع (لن يؤثر على المخزون)').then(r=>{
+      if(!r.isConfirmed) return;
+      DB.saveReturns(DB.getReturns().filter(x=>x.id!==id));
+      Utils.toast('success','تم الحذف');
+      Router.go('returns');
+    });
+  }
+};
+
+/* ---------- MOVEMENTS ---------- */
+Pages.movements = () => {
+  const movements = DB.getMovements().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  const settings = DB.getSettings();
+  return `
+  <div class="page">
+    <div class="page-header">
+      <div><h4><i class="fas fa-list-check" style="color:var(--primary)"></i> حركة المخزون</h4><p>سجل كامل لجميع حركات المخزن</p></div>
+    </div>
+    <div class="content-card">
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-md-3"><select id="movType" class="form-select"><option value="">كل الأنواع</option><option>استلام</option><option>صرف</option><option>مرتجع</option><option>جرد</option><option>تعديل-زيادة</option><option>تعديل-نقص</option></select></div>
+          <div class="col-md-3"><select id="movCategory" class="form-select"><option value="">كل التصنيفات</option>${settings.categories.map(c=>`<option>${c}</option>`).join('')}</select></div>
+          <div class="col-md-3"><input type="date" id="movFrom" class="form-control"></div>
+          <div class="col-md-3"><input type="date" id="movTo" class="form-control"></div>
+        </div>
+        <div class="table-responsive">
+          <table id="movementsTable" class="table table-hover" style="width:100%">
+            <thead><tr>
+              <th>رقم الحركة</th><th>التاريخ</th><th>الوقت</th><th>النوع</th>
+              <th>الصنف</th><th>التصنيف</th><th>الكمية</th><th>الشخص</th>
+              <th>المشروع</th><th>رقم الإذن</th><th>قبل</th><th>بعد</th><th>ملاحظات</th>
+            </tr></thead>
+            <tbody>
+              ${movements.map(m=>`
+                <tr>
+                  <td><small>${m.id}</small></td>
+                  <td>${Utils.formatDate(m.date)}</td>
+                  <td><small>${m.time||''}</small></td>
+                  <td><span class="badge ${m.type==='استلام'?'badge-success':m.type==='صرف'?'badge-danger':m.type==='مرتجع'?'badge-info':'badge-warning'}">${m.type}</span></td>
+                  <td><strong>${Utils.escape(m.productName)}</strong><br><small class="text-muted">${Utils.escape(m.productCode)}</small></td>
+                  <td><small>${Utils.escape(m.category||'-')}</small></td>
+                  <td>${m.quantity} ${Utils.escape(m.unit)}</td>
+                  <td>${Utils.escape(m.person||'-')}</td>
+                  <td>${Utils.escape(m.project||'-')}</td>
+                  <td><small>${Utils.escape(m.refNumber||'-')}</small></td>
+                  <td>${m.balanceBefore}</td>
+                  <td><strong>${m.balanceAfter}</strong></td>
+                  <td><small>${Utils.escape(m.notes||'-')}</small></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>`;
+};
+
+Pages.movements.after = () => {
+  const dt = $('#movementsTable').DataTable({
+    pageLength:25, lengthMenu:[[10,25,50,100,-1],[10,25,50,100,'الكل']],
+    language:{search:'بحث:',lengthMenu:'عرض _MENU_',info:'صفحة _PAGE_ من _PAGES_',infoEmpty:'لا توجد سجلات',zeroRecords:'لا توجد نتائج',paginate:{next:'التالي',previous:'السابق'}},
+    order:[[1,'desc']]
+  });
+  const apply = ()=>{
+    dt.column(3).search(document.getElementById('movType').value);
+    dt.column(5).search(document.getElementById('movCategory').value);
+    // Custom date filter
+    $.fn.dataTable.ext.search.push(function(settings,data,dataIndex){
+      const from = document.getElementById('movFrom').value;
+      const to = document.getElementById('movTo').value;
+      if(!from && !to) return true;
+      const d = data[1]; // formatted date
+      const parts = d.split('/');
+      const dateStr = parts.length===3 ? `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}` : '';
+      if(from && dateStr < from) return false;
+      if(to && dateStr > to) return false;
+      return true;
+    });
+    dt.draw();
+  };
+  ['movType','movCategory','movFrom','movTo'].forEach(id=>{
+    document.getElementById(id).addEventListener('change', apply);
+  });
+};
+
+/* ---------- WHO TOOK ---------- */
+Pages['who-took'] = () => {
+  const users = DB.getUsers();
+  const projects = DB.getProjects();
+  const settings = DB.getSettings();
+  return `
+  <div class="page">
+    <div class="page-header">
+      <div><h4><i class="fas fa-user-magnifying-glass" style="color:var(--primary)"></i> من سحب ماذا؟</h4><p>استعلام تفصيلي عن سحوبات الأشخاص</p></div>
+    </div>
+    <div class="content-card">
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-md-3"><label class="form-label">الشخص</label>
+            <select id="wtPerson" class="form-select"><option value="">الكل</option>${users.map(u=>`<option>${Utils.escape(u.name)}</option>`).join('')}</select></div>
+          <div class="col-md-3"><label class="form-label">المشروع</label>
+            <select id="wtProject" class="form-select"><option value="">الكل</option>${projects.map(p=>`<option>${Utils.escape(p.name)}</option>`).join('')}</select></div>
+          <div class="col-md-3"><label class="form-label">التصنيف</label>
+            <select id="wtCategory" class="form-select"><option value="">الكل</option>${settings.categories.map(c=>`<option>${c}</option>`).join('')}</select></div>
+          <div class="col-md-3"><label class="form-label">الصنف</label>
+            <select id="wtProduct" class="form-select"><option value="">الكل</option>${DB.getProducts().map(p=>`<option value="${p.id}">${Utils.escape(p.name)}</option>`).join('')}</select></div>
+          <div class="col-md-3"><label class="form-label">من تاريخ</label><input type="date" id="wtFrom" class="form-control"></div>
+          <div class="col-md-3"><label class="form-label">إلى تاريخ</label><input type="date" id="wtTo" class="form-control"></div>
+          <div class="col-md-3 d-flex align-items-end"><button class="btn btn-primary w-100" onclick="WhoTook.apply()"><i class="fas fa-search"></i> بحث</button></div>
+          <div class="col-md-3 d-flex align-items-end"><button class="btn btn-outline-secondary w-100" onclick="WhoTook.reset()"><i class="fas fa-undo"></i> إعادة تعيين</button></div>
+        </div>
+        <div id="wtSummary" class="mb-3"></div>
+        <div class="table-responsive">
+          <table id="wtTable" class="table table-hover" style="width:100%">
+            <thead><tr>
+              <th>الشخص</th><th>التاريخ</th><th>الصنف</th><th>الكمية</th>
+              <th>الوحدة</th><th>المشروع</th><th>سبب السحب</th><th>رقم الإذن</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>`;
+};
+
+Pages['who-took'].after = () => {
+  WhoTook.dt = $('#wtTable').DataTable({
+    pageLength:25, language:{search:'بحث:',lengthMenu:'عرض _MENU_',info:'صفحة _PAGE_ من _PAGES_',zeroRecords:'لا توجد نتائج',paginate:{next:'التالي',previous:'السابق'}},
+    order:[[1,'desc']]
+  });
+  WhoTook.apply();
+};
+
+const WhoTook = {
+  dt:null,
+  apply(){
+    const person = document.getElementById('wtPerson').value;
+    const project = document.getElementById('wtProject').value;
+    const category = document.getElementById('wtCategory').value;
+    const productId = document.getElementById('wtProduct').value;
+    const from = document.getElementById('wtFrom').value;
+    const to = document.getElementById('wtTo').value;
+    const issues = DB.getIssues();
+    let rows = [];
+    issues.forEach(iss=>{
+      const dateStr = iss.date || '';
+      if(person && iss.person !== person) return;
+      if(project && iss.project !== project) return;
+      if(from && dateStr < from) return;
+      if(to && dateStr > to) return;
+      (iss.items||[]).forEach(it=>{
+        if(category && it.productName && !it.productName.includes(category)){
+          // check category via product
+          const p = DB.getProducts().find(x=>x.id===it.productId);
+          if(!p || p.category !== category) return;
+        }
+        if(productId && it.productId !== productId) return;
+        const p = DB.getProducts().find(x=>x.id===it.productId);
+        if(category && (!p || p.category !== category)) return;
+        rows.push({
+          person: iss.person,
+          date: iss.date,
+          time: iss.time||'',
+          productName: it.productName,
+          productCode: it.productCode||'',
+          quantity: it.quantity,
+          unit: it.unit,
+          project: iss.project,
+          reason: iss.reason,
+          issueNo: iss.issueNo
+        });
+      });
+    });
+    if(this.dt){ this.dt.destroy(); }
+    const tbody = document.querySelector('#wtTable tbody');
+    tbody.innerHTML = rows.map(r=>`
+      <tr>
+        <td><strong>${Utils.escape(r.person)}</strong></td>
+        <td>${Utils.formatDate(r.date)} <small>${r.time||''}</small></td>
+        <td>${Utils.escape(r.productName)}<br><small class="text-muted">${Utils.escape(r.productCode)}</small></td>
+        <td><strong>${r.quantity}</strong></td>
+        <td>${Utils.escape(r.unit)}</td>
+        <td>${Utils.escape(r.project||'-')}</td>
+        <td><small>${Utils.escape(r.reason||'-')}</small></td>
+        <td><small>${Utils.escape(r.issueNo||'-')}</small></td>
+      </tr>`).join('');
+    this.dt = $('#wtTable').DataTable({
+      pageLength:25, language:{search:'بحث:',lengthMenu:'عرض _MENU_',info:'صفحة _PAGE_ من _PAGES_',zeroRecords:'لا توجد نتائج',paginate:{next:'التالي',previous:'السابق'}},
+      order:[[1,'desc']]
+    });
+    // Summary
+    const total = rows.reduce((s,r)=>s+Number(r.quantity),0);
+    const uniquePersons = new Set(rows.map(r=>r.person)).size;
+    document.getElementById('wtSummary').innerHTML = `
+      <div class="row g-2">
+        <div class="col-md-4">${UI.statCard('fa-list','bg-grad-blue',rows.length,'عدد العمليات')}</div>
+        <div class="col-md-4">${UI.statCard('fa-cubes','bg-grad-orange',total,'إجمالي الكميات')}</div>
+        <div class="col-md-4">${UI.statCard('fa-users','bg-grad-green',uniquePersons,'عدد الأشخاص')}</div>
+      </div>`;
+  },
+  reset(){
+    ['wtPerson','wtProject','wtCategory','wtProduct','wtFrom','wtTo'].forEach(id=>document.getElementById(id).value='');
+    this.apply();
+  }
+};
+
+/* ---------- BALANCE ---------- */
+Pages.balance = () => {
+  const products = DB.getProducts();
+  return `
+  <div class="page">
+    <div class="page-header">
+      <div><h4><i class="fas fa-scale-balanced" style="color:var(--primary)"></i> الرصيد الحالي</h4><p>الأرصدة الحالية لجميع الأصناف</p></div>
+      <div class="no-print"><button class="btn btn-outline-primary" onclick="window.print()"><i class="fas fa-print"></i> طباعة</button></div>
+    </div>
+    <div class="content-card">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table id="balanceTable" class="table table-hover" style="width:100%">
+            <thead><tr>
+              <th>الكود</th><th>الصنف</th><th>التصنيف</th><th>الوحدة</th>
+              <th>إجمالي الوارد</th><th>إجمالي المنصرف</th><th>الرصيد الحالي</th>
+              <th>الحد الأدنى</th><th>الحالة</th>
+            </tr></thead>
+            <tbody>
+              ${products.map(p=>{
+                const movements = DB.getMovements().filter(m=>m.productId===p.id);
+                const totalIn = movements.filter(m=>['استلام','مرتجع'].includes(m.type)).reduce((s,m)=>s+Number(m.quantity),0);
+                const totalOut = movements.filter(m=>m.type==='صرف').reduce((s,m)=>s+Number(m.quantity),0);
+                const st = Stock.getStatus(p);
+                return `<tr>
+                  <td><strong>${Utils.escape(p.code)}</strong></td>
+                  <td>${Utils.escape(p.name)}</td>
+                  <td>${Utils.escape(p.category)}</td>
+                  <td>${Utils.escape(p.unit)}</td>
+                  <td class="text-success">${totalIn}</td>
+                  <td class="text-danger">${totalOut}</td>
+                  <td><strong>${p.currentQty}</strong></td>
+                  <td>${p.minQty}</td>
+                  <td><span class="badge-status ${st.class}">${st.icon} ${st.label}</span></td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>`;
+};
+
+Pages.balance.after = () => {
+  $('#balanceTable').DataTable({
+    pageLength:25, lengthMenu:[[10,25,50,100,-1],[10,25,50,100,'الكل']],
+    language:{search:'بحث:',lengthMenu:'عرض _MENU_',info:'صفحة _PAGE_ من _PAGES_',zeroRecords:'لا توجد نتائج',paginate:{next:'التالي',previous:'السابق'}}
+  });
+};
+
+/* ---------- INVENTORY ---------- */
+Pages.inventory = () => {
+  const checks = DB.getInventory().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  return `
+  <div class="page">
+    <div class="page-header">
+      <div><h4><i class="fas fa-clipboard-check" style="color:var(--warning)"></i> الجرد</h4><p>جرد المخزون ومقارنة الكميات</p></div>
+      <div class="no-print">${Auth.can('inventory')?`<button class="btn btn-warning text-white" onclick="Inventory.openForm()"><i class="fas fa-plus"></i> جرد جديد</button>`:''}</div>
+    </div>
+    <div class="content-card">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table id="inventoryTable" class="table table-hover" style="width:100%">
+            <thead><tr><th>التاريخ</th><th>الصنف</th><th>الكمية المسجلة</th><th>الكمية الفعلية</th><th>الفرق</th><th>الحالة</th><th>ملاحظات</th></tr></thead>
+            <tbody>
+              ${checks.map(c=>`
+                <tr>
+                  <td>${Utils.formatDate(c.date)}</td>
+                  <td>${Utils.escape(c.productName)}<br><small class="text-muted">${Utils.escape(c.productCode)}</small></td>
+                  <td>${c.registeredQty}</td>
+                  <td><strong>${c.actualQty}</strong></td>
+                  <td><strong class="${c.difference>0?'text-success':c.difference<0?'text-danger':''}">${c.difference>0?'+':''}${c.difference}</strong></td>
+                  <td><span class="badge ${c.status==='مطابق'?'badge-success':c.status==='زيادة'?'badge-info':'badge-danger'}">${c.status}</span></td>
+                  <td><small>${Utils.escape(c.notes||'-')}</small></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>`;
+};
+
+Pages.inventory.after = () => {
+  $('#inventoryTable').DataTable({
+    pageLength:25, language:{search:'بحث:',lengthMenu:'عرض _MENU_',info:'صفحة _PAGE_ من _PAGES_',zeroRecords:'لا توجد سجلات',paginate:{next:'التالي',previous:'السابق'}}
+  });
+};
+
+const Inventory = {
+  openForm(){
+    if(!Auth.requirePerm('inventory')) return;
+    const products = DB.getProducts();
+    Swal.fire({
+      title:'جرد جديد',
+      html:`
+      <div class="text-end" style="font-size:13px">
+        <label class="form-label">اختر الصنف *</label>
+        <select id="invProduct" class="form-select mb-2">
+          <option value="">-- اختر --</option>
+          ${products.map(p=>`<option value="${p.id}" data-qty="${p.currentQty}" data-unit="${p.unit}">${Utils.escape(p.code)} - ${Utils.escape(p.name)} (${p.currentQty} ${p.unit})</option>`).join('')}
+        </select>
+        <div id="invInfo" class="alert alert-info py-2" style="display:none">
+          الكمية المسجلة: <strong id="invRegQty">0</strong> <span id="invUnit"></span>
+        </div>
+        <label class="form-label">الكمية الفعلية بالمخزن *</label>
+        <input id="invActual" type="number" class="form-control mb-2" min="0">
+        <label class="form-label">ملاحظات</label>
+        <textarea id="invNotes" class="form-control" rows="2"></textarea>
+      </div>`,
+      showCancelButton:true,
+      confirmButtonText:'تنفيذ الجرد',
+      cancelButtonText:'إلغاء',
+      confirmButtonColor:'#f39c12',
+      didOpen:()=>{
+        document.getElementById('invProduct').addEventListener('change', e=>{
+          const opt = e.target.options[e.target.selectedIndex];
+          if(e.target.value){
+            document.getElementById('invRegQty').textContent = opt.dataset.qty;
+            document.getElementById('invUnit').textContent = opt.dataset.unit;
+            document.getElementById('invInfo').style.display = 'block';
+          } else {
+            document.getElementById('invInfo').style.display = 'none';
+          }
+        });
+      },
+      preConfirm:()=>{
+        const pid = document.getElementById('invProduct').value;
+        const actual = document.getElementById('invActual').value;
+        if(!pid){ Swal.showValidationMessage('يرجى اختيار الصنف'); return false; }
+        if(actual==='' || Number(actual)<0){ Swal.showValidationMessage('الكمية الفعلية غير صحيحة'); return false; }
+        return { productId: pid, actualQty: Number(actual), notes: document.getElementById('invNotes').value };
+      }
+    }).then(r=>{
+      if(!r.isConfirmed) return;
+      Utils.showLoading();
+      setTimeout(()=>{
+        try{
+          const record = Stock.performInventory(r.value.productId, r.value.actualQty, r.value.notes);
+          Utils.hideLoading();
+          Swal.fire({icon:'success',title:'تم الجرد',html:`الحالة: <strong>${record.status}</strong><br>الفرق: ${record.difference>0?'+':''}${record.difference}`,timer:2200,showConfirmButton:false});
+          Router.go('inventory');
+        }catch(err){ Utils.hideLoading(); Swal.fire('خطأ',err.message,'error'); }
+      },400);
+    });
+  }
+};
+
+/* ---------- ALERTS ---------- */
+Pages.alerts = () => {
+  const low = Stock.getLowStockProducts();
+  const out = Stock.getOutOfStockProducts();
+  return `
+  <div class="page">
+    <div class="page-header">
+      <div><h4><i class="fas fa-triangle-exclamation" style="color:var(--warning)"></i> تنبيهات المخزون</h4><p>الأصناف المنخفضة والنافدة</p></div>
+    </div>
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <div class="content-card">
+          <div class="card-head"><h6><i class="fas fa-circle-xmark text-danger"></i> أصناف نافدة (${out.length})</h6></div>
+          <div class="card-body">
+            ${out.length ? out.map(p=>`
+              <div class="alert-item alert-danger-item">
+                <i class="fas fa-circle-xmark"></i>
+                <div style="flex:1">
+                  <strong>${Utils.escape(p.name)}</strong> <small>(${Utils.escape(p.code)})</small><br>
+                  <small>الرصيد: 0 ${Utils.escape(p.unit)} | الحد الأدنى: ${p.minQty}</small>
+                </div>
+              </div>`).join('') : UI.emptyState('لا توجد أصناف نافدة','','fa-check-circle')}
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="content-card">
+          <div class="card-head"><h6><i class="fas fa-triangle-exclamation text-warning"></i> أصناف منخفضة (${low.length})</h6></div>
+          <div class="card-body">
+            ${low.length ? low.map(p=>`
+              <div class="alert-item alert-warning-item">
+                <i class="fas fa-triangle-exclamation"></i>
+                <div style="flex:1">
+                  <strong>${Utils.escape(p.name)}</strong> <small>(${Utils.escape(p.code)})</small><br>
+                  <small>الرصيد: ${p.currentQty} ${Utils.escape(p.unit)} | الحد الأدنى: ${p.minQty}</small>
+                </div>
+              </div>`).join('') : UI.emptyState('لا توجد أصناف منخفضة','','fa-check-circle')}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+};
+
+/* ---------- USERS ---------- */
+Pages.users = () => {
+  const users = DB.getUsers();
+  return `
+  <div class="page">
+    <div class="page-header">
+      <div><h4><i class="fas fa-users" style="color:var(--primary)"></i> الأشخاص</h4><p>إدارة الأشخاص الذين يتعاملون مع المخزن</p></div>
+      <div class="no-print">${Auth.can('users')?`<button class="btn btn-primary" onclick="Users.openForm()"><i class="fas fa-plus"></i> إضافة شخص</button>`:''}</div>
+    </div>
+    <div class="content-card">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table id="usersTable" class="table table-hover" style="width:100%">
+            <thead><tr><th>الاسم</th><th>الوظيفة</th><th>القسم</th><th>الهاتف</th><th>المشروع</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+            <tbody>
+              ${users.map(u=>`
+                <tr>
+                  <td><strong>${Utils.escape(u.name)}</strong></td>
+                  <td>${Utils.escape(u.jobTitle||'-')}</td>
+                  <td>${Utils.escape(u.department||'-')}</td>
+                  <td>${Utils.escape(u.phone||'-')}</td>
+                  <td>${Utils.escape(u.project||'-')}</td>
+                  <td><span class="badge ${u.status==='نشط'?'badge-success':'badge-secondary'}">${u.status}</span></td>
+                  <td>
+                    ${Auth.can('users')?`<button class="btn btn-action btn-warning text-white" onclick="Users.openForm('${u.id}')"><i class="fas fa-edit"></i></button>`:''}
+                    ${Auth.can('users')?`<button class="btn btn-action btn-outline-danger" onclick="Users.remove('${u.id}')"><i class="fas fa-trash"></i></button>`:''}
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>`;
+};
+
+Pages.users.after = () => {
+  $('#usersTable').DataTable({
+    pageLength:25, language:{search:'بحث:',lengthMenu:'عرض _MENU_',info:'صفحة _PAGE_ من _PAGES_',zeroRecords:'لا توجد سجلات',paginate:{next:'التالي',previous:'السابق'}}
+  });
+};
+
+const Users = {
+  openForm(id){
+    if(!Auth.requirePerm('users')) return;
+    const u = id ? DB.getUsers().find(x=>x.id===id) : null;
+    const projects = DB.getProjects();
+    Swal.fire({
+      title: u?'تعديل شخص':'إضافة شخص',
+      html:`
+      <div class="text-end" style="font-size:13px">
+        <div class="row g-2">
+          <div class="col-6"><label class="form-label">الاسم *</label><input id="uName" class="form-control" value="${u?Utils.escape(u.name):''}"></div>
+          <div class="col-6"><label class="form-label">الوظيفة</label><input id="uJob" class="form-control" value="${u?Utils.escape(u.jobTitle||''):''}"></div>
+          <div class="col-6"><label class="form-label">القسم</label><input id="uDept" class="form-control" value="${u?Utils.escape(u.department||''):''}"></div>
+          <div class="col-6"><label class="form-label">رقم الهاتف</label><input id="uPhone" class="form-control" value="${u?Utils.escape(u.phone||''):''}"></div>
+          <div class="col-6"><label class="form-label">المشروع</label>
+            <select id="uProject" class="form-select">
+              <option value="">-- اختر --</option>
+              ${projects.map(p=>`<option ${u&&u.project===p.name?'selected':''}>${Utils.escape(p.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="col-6"><label class="form-label">الحالة</label>
+            <select id="uStatus" class="form-select">
+              <option ${u&&u.status==='نشط'?'selected':''}>نشط</option>
+              <option ${u&&u.status==='موقوف'?'selected':''}>موقوف</option>
+            </select>
+          </div>
+          <div class="col-12"><label class="form-label">ملاحظات</label><textarea id="uNotes" class="form-control" rows="2">${u?Utils.escape(u.notes||''):''}</textarea></div>
+        </div>
+      </div>`,
+      showCancelButton:true,
+      confirmButtonText: u?'حفظ':'إضافة',
+      cancelButtonText:'إلغاء',
+      confirmButtonColor:'#0f4c81',
+      preConfirm:()=>{
+        const name = document.getElementById('uName').value.trim();
+        if(!name){ Swal.showValidationMessage('يرجى إدخال الاسم'); return false; }
+        return {
+          name, jobTitle:document.getElementById('uJob').value.trim(),
+          department:document.getElementById('uDept').value.trim(),
+          phone:document.getElementById('uPhone').value.trim(),
+          project:document.getElementById('uProject').value,
+          status:document.getElementById('uStatus').value,
+          notes:document.getElementById('uNotes').value.trim()
+        };
+      }
+    }).then(r=>{
+      if(!r.isConfirmed) return;
+      const users = DB.getUsers();
+      if(u){
+        const idx = users.findIndex(x=>x.id===id);
+        users[idx] = {...users[idx], ...r.value};
+      } else {
+        users.push({id:DB.uid('USR'), ...r.value});
+      }
+      DB.saveUsers(users);
+      Utils.toast('success', u?'تم التعديل':'تمت الإضافة');
+      Router.go('users');
+    });
+  },
+  remove(id){
+    if(!Auth.requirePerm('users')) return;
+    Utils.confirmDelete('سيتم حذف هذا الشخص').then(r=>{
+      if(!r.isConfirmed) return;
+      DB.saveUsers(DB.getUsers().filter(x=>x.id!==id));
+      Utils.toast('success','تم الحذف');
+      Router.go('users');
+    });
+  }
+};
+
+/* ---------- PROJECTS ---------- */
+Pages.projects = () => {
+  const projects = DB.getProjects();
+  return `
+  <div class="page">
+    <div class="page-header">
+      <div><h4><i class="fas fa-building" style="color:var(--primary)"></i> المشاريع</h4><p>إدارة مشاريع الشركة</p></div>
+      <div class="no-print">${Auth.can('projects')?`<button class="btn btn-primary" onclick="Projects.openForm()"><i class="fas fa-plus"></i> إضافة مشروع</button>`:''}</div>
+    </div>
+    <div class="content-card">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table id="projectsTable" class="table table-hover" style="width:100%">
+            <thead><tr><th>الكود</th><th>اسم المشروع</th><th>الموقع</th><th>مدير المشروع</th><th>المهندس المسؤول</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+            <tbody>
+              ${projects.map(p=>`
+                <tr>
+                  <td><strong>${Utils.escape(p.code)}</strong></td>
+                  <td>${Utils.escape(p.name)}</td>
+                  <td>${Utils.escape(p.location||'-')}</td>
+                  <td>${Utils.escape(p.manager||'-')}</td>
+                  <td>${Utils.escape(p.engineer||'-')}</td>
+                  <td><span class="badge ${p.status==='قيد التنفيذ'?'badge-success':'badge-secondary'}">${p.status}</span></td>
+                  <td>
+                    ${Auth.can('projects')?`<button class="btn btn-action btn-warning text-white" onclick="Projects.openForm('${p.id}')"><i class="fas fa-edit"></i></button>`:''}
+                    ${Auth.can('projects')?`<button class="btn btn-action btn-outline-danger" onclick="Projects.remove('${p.id}')"><i class="fas fa-trash"></i></button>`:''}
+                  </td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>`;
+};
+
+Pages.projects.after = () => {
+  $('#projectsTable').DataTable({
+    pageLength:25, language:{search:'بحث:',lengthMenu:'عرض _MENU_',info:'صفحة _PAGE_ من _PAGES_',zeroRecords:'لا توجد سجلات',paginate:{next:'التالي',previous:'السابق'}}
+  });
+};
+
+const Projects = {
+  openForm(id){
+    if(!Auth.requirePerm('projects')) return;
+    const p = id ? DB.getProjects().find(x=>x.id===id) : null;
+    Swal.fire({
+      title: p?'تعديل مشروع':'إضافة مشروع',
+      html:`
+      <div class="text-end" style="font-size:13px">
+        <div class="row g-2">
+          <div class="col-6"><label class="form-label">كود المشروع *</label><input id="prCode" class="form-control" value="${p?Utils.escape(p.code):''}"></div>
+          <div class="col-6"><label class="form-label">اسم المشروع *</label><input id="prName" class="form-control" value="${p?Utils.escape(p.name):''}"></div>
+          <div class="col-12"><label class="form-label">الموقع</label><input id="prLoc" class="form-control" value="${p?Utils.escape(p.location||''):''}"></div>
+          <div class="col-6"><label class="form-label">مدير المشروع</label><input id="prMgr" class="form-control" value="${p?Utils.escape(p.manager||''):''}"></div>
+          <div class="col-6"><label class="form-label">المهندس المسؤول</label><input id="prEng" class="form-control" value="${p?Utils.escape(p.engineer||''):''}"></div>
+          <div class="col-6"><label class="form-label">الحالة</label>
+            <select id="prStatus" class="form-select">
+              <option ${p&&p.status==='قيد التنفيذ'?'selected':''}>قيد التنفيذ</option>
+              <option ${p&&p.status==='منتهي'?'selected':''}>منتهي</option>
+              <option ${p&&p.status==='متوقف'?'selected':''}>متوقف</option>
+            </select>
+          </div>
+        </div>
+      </div>`,
+      showCancelButton:true,
+      confirmButtonText: p?'حفظ':'إضافة',
+      cancelButtonText:'إلغاء',
+      confirmButtonColor:'#0f4c81',
+      preConfirm:()=>{
+        const code=document.getElementById('prCode').value.trim();
+        const name=document.getElementById('prName').value.trim();
+        if(!code||!name){ Swal.showValidationMessage('يرجى إدخال الكود والاسم'); return false; }
+        return {
+          code, name,
+          location:document.getElementById('prLoc').value.trim(),
+          manager:document.getElementById('prMgr').value.trim(),
+          engineer:document.getElementById('prEng').value.trim(),
+          status:document.getElementById('prStatus').value
+        };
+      }
+    }).then(r=>{
+      if(!r.isConfirmed) return;
+      const projects = DB.getProjects();
+      if(p){
+        const idx = projects.findIndex(x=>x.id===id);
+        projects[idx] = {...projects[idx], ...r.value};
+      } else {
+        projects.push({id:DB.uid('PRJ'), ...r.value});
+      }
+      DB.saveProjects(projects);
+      Utils.toast('success', p?'تم التعديل':'تمت الإضافة');
+      Router.go('projects');
+    });
+  },
+  remove(id){
+    if(!Auth.requirePerm('projects')) return;
+    Utils.confirmDelete('سيتم حذف هذا المشروع').then(r=>{
+      if(!r.isConfirmed) return;
+      DB.saveProjects(DB.getProjects().filter(x=>x.id!==id));
+      Utils.toast('success','تم الحذف');
+      Router.go('projects');
+    });
+  }
+};
+
+/* ---------- REPORTS ---------- */
+Pages.reports = () => {
+  return `
+  <div class="page">
+    <div class="page-header">
+      <div><h4><i class="fas fa-chart-column" style="color:var(--primary)"></i> التقارير</h4><p>تقارير شاملة قابلة للطباعة والتصدير</p></div>
+    </div>
+    <div class="content-card">
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-md-4"><label class="form-label">نوع التقرير</label>
+            <select id="repType" class="form-select">
+              <option value="stock">تقرير المخزون الحالي</option>
+              <option value="receipts">تقرير الوارد</option>
+              <option value="issues">تقرير المنصرف</option>
+              <option value="product">تقرير حركة صنف</option>
+              <option value="person">تقرير سحوبات شخص</option>
+              <option value="project">تقرير سحوبات مشروع</option>
+              <option value="out">تقرير الأصناف النافدة</option>
+              <option value="low">تقرير الأصناف منخفضة المخزون</option>
+              <option value="inventory">تقرير الجرد</option>
+              <option value="returns">تقرير المرتجعات</option>
+            </select>
+          </div>
+          <div class="col-md-3" id="repExtra1"></div>
+          <div class="col-md-3"><label class="form-label">من تاريخ</label><input type="date" id="repFrom" class="form-control"></div>
+          <div class="col-md-2"><label class="form-label">إلى تاريخ</label><input type="date" id="repTo" class="form-control"></div>
+        </div>
+        <div class="mb-3 no-print">
+          <button class="btn btn-primary" onclick="Reports.generate()"><i class="fas fa-search"></i> عرض التقرير</button>
+          <button class="btn btn-outline-primary" onclick="window.print()"><i class="fas fa-print"></i> طباعة / PDF</button>
+          <button class="btn btn-success" onclick="Reports.exportCSV()"><i class="fas fa-file-excel"></i> تصدير Excel</button>
+        </div>
+        <div id="reportResult"></div>
+      </div>
+    </div>
+  </div>`;
+};
+
+Pages.reports.after = () => {
+  Reports.updateExtra();
+  document.getElementById('repType').addEventListener('change', Reports.updateExtra);
+};
+
+const Reports = {
+  updateExtra(){
+    const type = document.getElementById('repType').value;
+    const box = document.getElementById('repExtra1');
+    if(type==='product'){
+      box.innerHTML = `<label class="form-label">الصنف</label><select id="repProduct" class="form-select">${DB.getProducts().map(p=>`<option value="${p.id}">${Utils.escape(p.name)}</option>`).join('')}</select>`;
+    } else if(type==='person'){
+      box.innerHTML = `<label class="form-label">الشخص</label><select id="repPerson" class="form-select">${DB.getUsers().map(u=>`<option>${Utils.escape(u.name)}</option>`).join('')}</select>`;
+    } else if(type==='project'){
+      box.innerHTML = `<label class="form-label">المشروع</label><select id="repProject" class="form-select">${DB.getProjects().map(p=>`<option>${Utils.escape(p.name)}</option>`).join('')}</select>`;
+    } else {
+      box.innerHTML = '';
+    }
+  },
+  currentRows: [],
+  currentHeaders: [],
+  generate(){
+    const type = document.getElementById('repType').value;
+    const from = document.getElementById('repFrom').value;
+    const to = document.getElementById('repTo').value;
+    const box = document.getElementById('reportResult');
+    let title = '';
+    let headers = [];
+    let rows = [];
+
+    if(type==='stock'){
+      title = 'تقرير المخزون الحالي';
+      headers = ['الكود','الصنف','التصنيف','الوحدة','الرصيد','الحد الأدنى','الحالة'];
+      rows = DB.getProducts().map(p=>[p.code, p.name, p.category, p.unit, p.currentQty, p.minQty, Stock.getStatus(p).label]);
+    } else if(type==='out'){
+      title = 'تقرير الأصناف النافدة';
+      headers = ['الكود','الصنف','التصنيف','الوحدة','الحد الأدنى'];
+      rows = Stock.getOutOfStockProducts().map(p=>[p.code, p.name, p.category, p.unit, p.minQty]);
+    } else if(type==='low'){
+      title = 'تقرير الأصناف منخفضة المخزون';
+      headers = ['الكود','الصنف','التصنيف','الوحدة','الرصيد','الحد الأدنى'];
+      rows = Stock.getLowStockProducts().map(p=>[p.code, p.name, p.category, p.unit, p.currentQty, p.minQty]);
+    } else if(type==='receipts'){
+      title = 'تقرير الوارد';
+      headers = ['رقم الإذن','التاريخ','المورد','أمر الشراء','الصنف','الكمية','الوحدة','المستلم'];
+      DB.getReceipts().forEach(r=>{
+        if(from && r.date < from) return;
+        if(to && r.date > to) return;
+        (r.items||[]).forEach(it=>{
+          rows.push([r.receiptNo, r.date, r.supplier||'-', r.poNumber||'-', it.productName, it.quantity, it.unit, r.receiver||'-']);
+        });
+      });
+    } else if(type==='issues'){
+      title = 'تقرير المنصرف';
+      headers = ['رقم الإذن','التاريخ','الشخص','المشروع','الصنف','الكمية','الوحدة','السبب'];
+      DB.getIssues().forEach(i=>{
+        if(from && i.date < from) return;
+        if(to && i.date > to) return;
+        (i.items||[]).forEach(it=>{
+          rows.push([i.issueNo, i.date, i.person, i.project, it.productName, it.quantity, it.unit, i.reason||'-']);
+        });
+      });
+    } else if(type==='product'){
+      const pid = document.getElementById('repProduct')?.value;
+      const p = DB.getProducts().find(x=>x.id===pid);
+      title = `تقرير حركة الصنف: ${p?p.name:''}`;
+      headers = ['التاريخ','الوقت','النوع','الكمية','الرصيد قبل','الرصيد بعد','الشخص','رقم الإذن','ملاحظات'];
+      DB.getMovements().filter(m=>m.productId===pid).forEach(m=>{
+        if(from && m.date < from) return;
+        if(to && m.date > to) return;
+        rows.push([m.date, m.time||'', m.type, m.quantity+' '+(m.unit||''), m.balanceBefore, m.balanceAfter, m.person||'-', m.refNumber||'-', m.notes||'-']);
+      });
+    } else if(type==='person'){
+      const person = document.getElementById('repPerson')?.value;
+      title = `تقرير سحوبات: ${person}`;
+      headers = ['التاريخ','الوقت','الصنف','الكمية','الوحدة','المشروع','السبب','رقم الإذن'];
+      DB.getIssues().filter(i=>i.person===person).forEach(i=>{
+        if(from && i.date < from) return;
+        if(to && i.date > to) return;
+        (i.items||[]).forEach(it=>{
+          rows.push([i.date, i.time||'', it.productName, it.quantity, it.unit, i.project, i.reason||'-', i.issueNo]);
+        });
+      });
+    } else if(type==='project'){
+      const project = document.getElementById('repProject')?.value;
+      title = `تقرير سحوبات المشروع: ${project}`;
+      headers = ['التاريخ','الشخص','الصنف','الكمية','الوحدة','السبب','رقم الإذن'];
+      DB.getIssues().filter(i=>i.project===project).forEach(i=>{
+        if(from && i.date < from) return;
+        if(to && i.date > to) return;
+        (i.items||[]).forEach(it=>{
+          rows.push([i.date, i.person, it.productName, it.quantity, it.unit, i.reason||'-', i.issueNo]);
+        });
+      });
+    } else if(type==='inventory'){
+      title = 'تقرير الجرد';
+      headers = ['التاريخ','الصنف','المسجل','الفعلي','الفرق','الحالة','ملاحظات'];
+      DB.getInventory().forEach(c=>{
+        if(from && c.date < from) return;
+        if(to && c.date > to) return;
+        rows.push([c.date, c.productName, c.registeredQty, c.actualQty, (c.difference>0?'+':'')+c.difference, c.status, c.notes||'-']);
+      });
+    } else if(type==='returns'){
+      title = 'تقرير المرتجعات';
+      headers = ['رقم المرتجع','التاريخ','الشخص','المشروع','الصنف','الكمية','الوحدة','السبب'];
+      DB.getReturns().forEach(r=>{
+        if(from && r.date < from) return;
+        if(to && r.date > to) return;
+        (r.items||[]).forEach(it=>{
+          rows.push([r.returnNo, r.date, r.person, r.project||'-', it.productName, it.quantity, it.unit, r.reason||'-']);
+        });
+      });
+    }
+
+    this.currentRows = rows;
+    this.currentHeaders = headers;
+
+    box.innerHTML = `
+      <div style="border:1px solid #e8eef5;border-radius:12px;padding:18px;background:#fff">
+        <div style="text-align:center;margin-bottom:18px;border-bottom:2px solid var(--primary);padding-bottom:12px">
+          <h5 style="font-weight:800;color:var(--primary);margin:0">${title}</h5>
+          <small style="color:#64748b">نظام إدارة مخزن الموقع - ${new Date().toLocaleDateString('ar-EG')}</small>
+        </div>
+        ${rows.length ? `
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm" style="font-size:12.5px">
+            <thead style="background:#f0f6fc"><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+            <tbody>${rows.map(r=>`<tr>${r.map(c=>`<td>${Utils.escape(c)}</td>`).join('')}</tr>`).join('')}</tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px;text-align:left;font-size:12px;color:#64748b">
+          إجمالي السجلات: <strong>${rows.length}</strong>
+        </div>` : UI.emptyState('لا توجد بيانات','جرب تغيير الفلاتر أو الفترة الزمنية')}
+      </div>`;
+  },
+  exportCSV(){
+    if(!this.currentRows.length){ Utils.toast('warning','لا توجد بيانات للتصدير'); return; }
+    const csv = [this.currentHeaders.join(','), ...this.currentRows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(','))].join('\n');
+    const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8;'});
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'report_'+Date.now()+'.csv';
+    link.click();
+    Utils.toast('success','تم تصدير التقرير');
+  }
+};
+
+/* ---------- SETTINGS ---------- */
+Pages.settings = () => {
+  const settings = DB.getSettings();
+  const current = Auth.getCurrent();
+  return `
+  <div class="page">
+    <div class="page-header">
+      <div><h4><i class="fas fa-gear" style="color:var(--primary)"></i> الإعدادات</h4><p>إعدادات النظام والنسخ الاحتياطي</p></div>
+    </div>
+    <div class="row g-3">
+      <div class="col-lg-6">
+        <div class="content-card">
+          <div class="card-head"><h6><i class="fas fa-user-shield"></i> المستخدم الحالي</h6></div>
+          <div class="card-body">
+            <div class="mb-3">
+              <label class="form-label">الاسم</label>
+              <input id="setUserName" class="form-control" value="${Utils.escape(current.name)}">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">الصلاحية</label>
+              <select id="setUserRole" class="form-select">
+                <option value="Admin" ${current.role==='Admin'?'selected':''}>Admin - مدير النظام (كل الصلاحيات)</option>
+                <option value="Storekeeper" ${current.role==='Storekeeper'?'selected':''}>Storekeeper - أمين مخزن (إضافة/استلام/صرف/جرد)</option>
+                <option value="Viewer" ${current.role==='Viewer'?'selected':''}>Viewer - مشاهد (عرض فقط)</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="Settings.saveUser()"><i class="fas fa-save"></i> حفظ</button>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="content-card">
+          <div class="card-head"><h6><i class="fas fa-database"></i> النسخ الاحتياطي</h6></div>
+          <div class="card-body">
+            <p style="font-size:13px;color:#64748b">يمكنك تصدير نسخة احتياطية كاملة من البيانات بصيغة JSON، أو استيرادها لاحقًا.</p>
+            <button class="btn btn-success mb-2" onclick="Settings.exportBackup()"><i class="fas fa-download"></i> تصدير نسخة احتياطية</button>
+            <button class="btn btn-info text-white mb-2" onclick="document.getElementById('importFile').click()"><i class="fas fa-upload"></i> استيراد نسخة احتياطية</button>
+            <input type="file" id="importFile" accept=".json" style="display:none" onchange="Settings.importBackup(event)">
+            <hr>
+            <button class="btn btn-outline-warning mb-2" onclick="Settings.seedDemo()"><i class="fas fa-flask"></i> استعادة البيانات التجريبية</button>
+            <button class="btn btn-outline-danger" onclick="Settings.clearAll()"><i class="fas fa-trash"></i> حذف كل البيانات</button>
+          </div>
+        </div>
+      </div>
+      <div class="col-12">
+        <div class="content-card">
+          <div class="card-head"><h6><i class="fas fa-list"></i> التصنيفات والوحدات</h6></div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <h6 style="font-weight:700">التصنيفات</h6>
+                <div class="d-flex flex-wrap gap-2 mb-3" id="catsList">
+                  ${settings.categories.map((c,i)=>`<span class="badge bg-primary" style="font-size:13px;padding:8px 12px">${Utils.escape(c)} <i class="fas fa-times ms-1" style="cursor:pointer" onclick="Settings.removeCat(${i})"></i></span>`).join('')}
+                </div>
+                <div class="input-group">
+                  <input id="newCat" class="form-control" placeholder="تصنيف جديد">
+                  <button class="btn btn-primary" onclick="Settings.addCat()"><i class="fas fa-plus"></i></button>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <h6 style="font-weight:700">الوحدات</h6>
+                <div class="d-flex flex-wrap gap-2 mb-3" id="unitsList">
+                  ${settings.units.map((u,i)=>`<span class="badge bg-info" style="font-size:13px;padding:8px 12px">${Utils.escape(u)} <i class="fas fa-times ms-1" style="cursor:pointer" onclick="Settings.removeUnit(${i})"></i></span>`).join('')}
+                </div>
+                <div class="input-group">
+                  <input id="newUnit" class="form-control" placeholder="وحدة جديدة">
+                  <button class="btn btn-info text-white" onclick="Settings.addUnit()"><i class="fas fa-plus"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+};
+
+const Settings = {
+  saveUser(){
+    const name = document.getElementById('setUserName').value.trim();
+    const role = document.getElementById('setUserRole').value;
+    if(!name){ Utils.toast('error','يرجى إدخال الاسم'); return; }
+    Auth.setCurrent({name, role});
+    Router.refreshUser();
+    Utils.toast('success','تم حفظ الإعدادات');
+  },
+  exportBackup(){
+    const data = DB.exportAll();
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'warehouse_backup_'+new Date().toISOString().split('T')[0]+'.json';
+    link.click();
+    Utils.toast('success','تم تصدير النسخة الاحتياطية');
+  },
+  importBackup(e){
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      try{
+        const data = JSON.parse(ev.target.result);
+        Utils.confirmDelete('سيتم استبدال جميع البيانات الحالية. هل تريد المتابعة؟').then(r=>{
+          if(!r.isConfirmed) return;
+          Utils.showLoading();
+          setTimeout(()=>{
+            DB.importAll(data);
+            Utils.hideLoading();
+            Swal.fire({icon:'success',title:'تم الاستيراد',timer:1500,showConfirmButton:false});
+            Router.go('dashboard');
+          },400);
+        });
+      }catch(err){ Utils.toast('error','ملف غير صالح'); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  },
+  seedDemo(){
+    Utils.confirmDelete('سيتم استبدال البيانات الحالية بالبيانات التجريبية').then(r=>{
+      if(!r.isConfirmed) return;
+      Utils.showLoading();
+      setTimeout(()=>{
+        DB.clearAll();
+        Seed.init();
+        Utils.hideLoading();
+        Utils.toast('success','تم استعادة البيانات التجريبية');
+        Router.go('dashboard');
+      },500);
+    });
+  },
+  clearAll(){
+    Utils.confirmDelete('سيتم حذف كل البيانات نهائيًا! هل أنت متأكد؟').then(r=>{
+      if(!r.isConfirmed) return;
+      DB.clearAll();
+      Seed.init();
+      Utils.toast('success','تم حذف البيانات');
+      Router.go('dashboard');
+    });
+  },
+  addCat(){
+    const v = document.getElementById('newCat').value.trim();
+    if(!v) return;
+    const s = DB.getSettings();
+    if(s.categories.includes(v)){ Utils.toast('warning','موجود بالفعل'); return; }
+    s.categories.push(v); DB.saveSettings(s);
+    Router.go('settings');
+  },
+  removeCat(i){
+    const s = DB.getSettings();
+    s.categories.splice(i,1); DB.saveSettings(s);
+    Router.go('settings');
+  },
+  addUnit(){
+    const v = document.getElementById('newUnit').value.trim();
+    if(!v) return;
+    const s = DB.getSettings();
+    if(s.units.includes(v)){ Utils.toast('warning','موجود بالفعل'); return; }
+    s.units.push(v); DB.saveSettings(s);
+    Router.go('settings');
+  },
+  removeUnit(i){
+    const s = DB.getSettings();
+    s.units.splice(i,1); DB.saveSettings(s);
+    Router.go('settings');
+  }
+};
+
+/* ============================================================
+   ROUTER
+   ============================================================ */
+const Router = {
+  current: 'dashboard',
+  go(page){
+    if(!Pages[page]) page = 'dashboard';
+    this.current = page;
+    UI.setActive(page);
+    const container = document.getElementById('app');
+    container.innerHTML = '';
+    container.appendChild(this.buildPage(page));
+    if(Pages[page].after) Pages[page].after();
+    // Close sidebar on mobile
+    document.getElementById('sidebar').classList.remove('show');
+    document.getElementById('sidebarOverlay').classList.remove('show');
+    window.scrollTo({top:0,behavior:'smooth'});
+  },
+  buildPage(page){
+    const html = Pages[page]();
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    return div.firstElementChild;
+  },
+  refreshUser(){
+    const u = Auth.getCurrent();
+    document.getElementById('currentUserName').textContent = u.name;
+    document.getElementById('currentUserRole').textContent = u.role;
+    document.getElementById('currentUserAvatar').textContent = u.name.charAt(0);
+  }
+};
+
+/* ============================================================
+   GLOBAL SEARCH
+   ============================================================ */
+const GlobalSearch = {
+  init(){
+    const input = document.getElementById('globalSearch');
+    const results = document.getElementById('searchResults');
+    let timer;
+    input.addEventListener('input', ()=>{
+      clearTimeout(timer);
+      timer = setTimeout(()=>{
+        const q = input.value.trim().toLowerCase();
+        if(!q){ results.classList.remove('show'); return; }
+        this.search(q);
+      }, 200);
+    });
+    document.addEventListener('click', e=>{
+      if(!e.target.closest('.search-box')) results.classList.remove('show');
+    });
+  },
+  search(q){
+    const results = document.getElementById('searchResults');
+    const items = [];
+    // products
+    DB.getProducts().filter(p=>p.name.toLowerCase().includes(q)||p.code.toLowerCase().includes(q)).slice(0,5).forEach(p=>{
+      items.push({type:'صنف', title:p.name, sub:`${p.code} - رصيد: ${p.currentQty} ${p.unit}`, action:()=>{ Router.go('products'); setTimeout(()=>Products.view(p.id),400); }});
+    });
+    // users
+    DB.getUsers().filter(u=>u.name.toLowerCase().includes(q)).slice(0,3).forEach(u=>{
+      items.push({type:'شخص', title:u.name, sub:`${u.jobTitle||''} - ${u.project||''}`, action:()=>Router.go('users')});
+    });
+    // projects
+    DB.getProjects().filter(p=>p.name.toLowerCase().includes(q)||p.code.toLowerCase().includes(q)).slice(0,3).forEach(p=>{
+      items.push({type:'مشروع', title:p.name, sub:p.code, action:()=>Router.go('projects')});
+    });
+    // issues
+    DB.getIssues().filter(i=>i.person?.toLowerCase().includes(q)||i.project?.toLowerCase().includes(q)).slice(0,3).forEach(i=>{
+      items.push({type:'صرف', title:`إذن ${i.issueNo} - ${i.person}`, sub:`${i.project} - ${i.date}`, action:()=>{ Router.go('issues'); setTimeout(()=>Issues.view(i.id),400); }});
+    });
+    if(!items.length){
+      results.innerHTML = `<div class="search-result-item text-center text-muted">لا توجد نتائج</div>`;
+    } else {
+      results.innerHTML = items.map((it,i)=>`
+        <div class="search-result-item" data-idx="${i}">
+          <div class="title"><span class="badge bg-secondary me-1" style="font-size:10px">${it.type}</span> ${Utils.escape(it.title)}</div>
+          <div class="sub">${Utils.escape(it.sub)}</div>
+        </div>`).join('');
+      results.querySelectorAll('.search-result-item').forEach(el=>{
+        el.addEventListener('click', ()=>{
+          const idx = Number(el.dataset.idx);
+          items[idx].action();
+          results.classList.remove('show');
+          document.getElementById('globalSearch').value = '';
+        });
+      });
+    }
+    results.classList.add('show');
+  }
+};
+
+/* ============================================================
+   INIT
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', ()=>{
+  Seed.init();
+  Router.refreshUser();
+  // Sidebar nav
+  document.querySelectorAll('.sidebar .nav-link').forEach(btn=>{
+    btn.addEventListener('click', ()=>Router.go(btn.dataset.page));
+  });
+  // Toggle
+  document.getElementById('toggleBtn').addEventListener('click', ()=>{
+    document.getElementById('sidebar').classList.toggle('show');
+    document.getElementById('sidebarOverlay').classList.toggle('show');
+  });
+  document.getElementById('sidebarOverlay').addEventListener('click', ()=>{
+    document.getElementById('sidebar').classList.remove('show');
+    document.getElementById('sidebarOverlay').classList.remove('show');
+  });
+  GlobalSearch.init();
+  Router.go('dashboard');
+});
+</script>
+</body>
+</html>
