@@ -1,0 +1,3455 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#1e3a5f" />
+  <title>نظام إدارة مخزن مواد الموقع</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <style>
+    :root {
+      --primary: #1e3a5f;
+      --primary-light: #2a5298;
+      --primary-dark: #0f2440;
+      --accent: #f59e0b;
+      --accent-light: #fbbf24;
+      --success: #10b981;
+      --success-light: #34d399;
+      --danger: #ef4444;
+      --danger-light: #f87171;
+      --warning: #f59e0b;
+      --info: #3b82f6;
+      --plumbing: #0ea5e9;
+      --electrical: #f59e0b;
+      --posttension: #8b5cf6;
+      --bg: #f1f5f9;
+      --bg-card: #ffffff;
+      --text: #1e293b;
+      --text-light: #64748b;
+      --border: #e2e8f0;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+      --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --radius-lg: 16px;
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      --sidebar-width: 260px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Cairo', sans-serif; -webkit-tap-highlight-color: transparent; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+    .app-container { display: flex; min-height: 100vh; }
+
+    /* ==================== شاشة التحميل ==================== */
+    .loading-screen {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      z-index: 9999;
+      color: #fff;
+      transition: opacity 0.5s ease;
+    }
+
+    .loading-screen.hidden { opacity: 0; pointer-events: none; }
+
+    .loading-screen .loader-logo {
+      font-size: 72px;
+      margin-bottom: 24px;
+      animation: float 2s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .loading-screen h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .loading-screen p { font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 32px; }
+
+    .loader-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255,255,255,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-status {
+      margin-top: 20px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.8);
+      min-height: 20px;
+    }
+
+    /* ==================== Overlay للموبايل ==================== */
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15,36,64,0.5);
+      backdrop-filter: blur(2px);
+      z-index: 999;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .sidebar-overlay.active { display: block; opacity: 1; }
+
+    /* ==================== الشريط الجانبي ==================== */
+    .sidebar {
+      width: var(--sidebar-width);
+      background: linear-gradient(180deg, var(--primary-dark) 0%, var(--primary) 100%);
+      color: #fff;
+      position: fixed;
+      top: 0; right: 0;
+      height: 100vh;
+      overflow-y: auto;
+      z-index: 1000;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+      will-change: transform;
+    }
+
+    .sidebar-header {
+      padding: 24px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      text-align: center;
+      position: relative;
+    }
+
+    .sidebar-header .logo-icon { font-size: 36px; margin-bottom: 8px; display: block; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); }
+    .sidebar-header h1 { font-size: 16px; font-weight: 700; line-height: 1.4; color: #fff; }
+    .sidebar-header .subtitle { font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 4px; font-weight: 400; }
+
+    .sidebar-close {
+      display: none;
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .sidebar-nav { flex: 1; padding: 12px 10px; overflow-y: auto; }
+
+    .nav-section-title {
+      font-size: 10px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.4);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 12px 12px 6px;
+      margin-top: 8px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: var(--transition);
+      color: rgba(255,255,255,0.75);
+      font-size: 13.5px;
+      font-weight: 500;
+      margin-bottom: 2px;
+      position: relative;
+      user-select: none;
+    }
+
+    .nav-item:hover { background: rgba(255,255,255,0.1); color: #fff; transform: translateX(-4px); }
+    .nav-item.active {
+      background: linear-gradient(90deg, rgba(245,158,11,0.25), rgba(245,158,11,0.1));
+      color: #fff;
+      font-weight: 600;
+      box-shadow: inset 3px 0 0 var(--accent);
+    }
+
+    .nav-item .nav-icon { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
+    .nav-item .nav-badge {
+      margin-right: auto;
+      background: var(--accent);
+      color: var(--primary-dark);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      min-width: 22px;
+      text-align: center;
+    }
+
+    .nav-item .nav-delete {
+      opacity: 0;
+      font-size: 14px;
+      color: var(--danger-light);
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: var(--transition);
+      margin-right: auto;
+    }
+
+    .nav-item:hover .nav-delete { opacity: 1; }
+
+    /* ==================== المحتوى الرئيسي ==================== */
+    .main-content {
+      flex: 1;
+      margin-right: var(--sidebar-width);
+      padding: 24px;
+      transition: var(--transition);
+      min-height: 100vh;
+      width: calc(100% - var(--sidebar-width));
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .topbar-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+
+    .menu-toggle {
+      display: none;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius-sm);
+      font-size: 20px;
+      cursor: pointer;
+      transition: var(--transition);
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .menu-toggle:hover { background: var(--primary-light); }
+
+    .page-title { font-size: 22px; font-weight: 700; color: var(--primary); }
+    .page-subtitle { font-size: 13px; color: var(--text-light); margin-top: 2px; }
+    .topbar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    /* ==================== مؤشر الحالة ==================== */
+    .connection-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 11.5px;
+      font-weight: 600;
+      background: rgba(16,185,129,0.12);
+      color: #059669;
+    }
+
+    .connection-status.offline {
+      background: rgba(239,68,68,0.12);
+      color: #dc2626;
+    }
+
+    .connection-status .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      animation: pulse 2s infinite;
+    }
+
+    .connection-status.offline .dot { background: #ef4444; animation: none; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+    }
+
+    /* ==================== الأزرار ==================== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: var(--radius-sm);
+      border: none;
+      font-family: 'Cairo', sans-serif;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      white-space: nowrap;
+      text-decoration: none;
+      user-select: none;
+    }
+
+    .btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+    .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: #fff; }
+    .btn-accent { background: linear-gradient(135deg, var(--accent), var(--accent-light)); color: var(--primary-dark); }
+    .btn-success { background: linear-gradient(135deg, var(--success), var(--success-light)); color: #fff; }
+    .btn-danger { background: linear-gradient(135deg, var(--danger), var(--danger-light)); color: #fff; }
+    .btn-warning { background: linear-gradient(135deg, var(--warning), #fbbf24); color: var(--primary-dark); }
+    .btn-info { background: linear-gradient(135deg, var(--info), #60a5fa); color: #fff; }
+
+    .btn-outline { background: transparent; border: 2px solid var(--border); color: var(--text); }
+    .btn-outline:hover { border-color: var(--primary); color: var(--primary); background: rgba(30,58,95,0.05); }
+
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn-xs { padding: 5px 10px; font-size: 11px; border-radius: 6px; }
+    .btn-pdf { background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; }
+
+    /* ==================== البطاقات ==================== */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 4px;
+      height: 100%;
+    }
+
+    .card.plumbing::before { background: var(--plumbing); }
+    .card.electrical::before { background: var(--electrical); }
+    .card.posttension::before { background: var(--posttension); }
+    .card.primary::before { background: var(--primary); }
+    .card.success::before { background: var(--success); }
+    .card.danger::before { background: var(--danger); }
+    .card.warning::before { background: var(--warning); }
+    .card.info::before { background: var(--info); }
+
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+
+    .card-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+    }
+
+    .card-icon.plumbing { background: rgba(14,165,233,0.12); color: var(--plumbing); }
+    .card-icon.electrical { background: rgba(245,158,11,0.12); color: var(--electrical); }
+    .card-icon.posttension { background: rgba(139,92,246,0.12); color: var(--posttension); }
+    .card-icon.primary { background: rgba(30,58,95,0.12); color: var(--primary); }
+    .card-icon.success { background: rgba(16,185,129,0.12); color: var(--success); }
+    .card-icon.danger { background: rgba(239,68,68,0.12); color: var(--danger); }
+    .card-icon.warning { background: rgba(245,158,11,0.12); color: var(--warning); }
+    .card-icon.info { background: rgba(59,130,246,0.12); color: var(--info); }
+
+    .card-value { font-size: 28px; font-weight: 800; color: var(--text); line-height: 1.2; }
+    .card-label { font-size: 12.5px; color: var(--text-light); font-weight: 500; margin-top: 4px; }
+
+    /* ==================== الجداول ==================== */
+    .table-container {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+
+    .table-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .table-header h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .table-wrapper { overflow-x: auto; max-height: 600px; overflow-y: auto; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead { position: sticky; top: 0; z-index: 10; }
+
+    thead th {
+      background: linear-gradient(135deg, var(--primary), var(--primary-light));
+      color: #fff;
+      padding: 12px 14px;
+      text-align: right;
+      font-weight: 600;
+      font-size: 12.5px;
+      white-space: nowrap;
+      border-bottom: 2px solid var(--primary-dark);
+    }
+
+    tbody tr { border-bottom: 1px solid var(--border); transition: var(--transition); }
+    tbody tr:hover { background: rgba(30,58,95,0.04); }
+    tbody td { padding: 11px 14px; text-align: right; white-space: nowrap; color: var(--text); }
+    tbody tr:last-child { border-bottom: none; }
+
+    .table-empty { text-align: center; padding: 40px 20px; color: var(--text-light); font-size: 14px; }
+    .table-empty .empty-icon { font-size: 48px; display: block; margin-bottom: 12px; opacity: 0.4; }
+
+    /* ==================== الشارات ==================== */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .badge-success { background: rgba(16,185,129,0.12); color: #059669; }
+    .badge-warning { background: rgba(245,158,11,0.12); color: #d97706; }
+    .badge-danger { background: rgba(239,68,68,0.12); color: #dc2626; }
+    .badge-info { background: rgba(59,130,246,0.12); color: #2563eb; }
+    .badge-primary { background: rgba(30,58,95,0.12); color: var(--primary); }
+
+    /* ==================== النماذج ==================== */
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .form-group label .required { color: var(--danger); margin-right: 2px; }
+
+    .form-control {
+      width: 100%;
+      padding: 11px 14px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: 'Cairo', sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      background: #fff;
+      transition: var(--transition);
+      outline: none;
+    }
+
+    .form-control:focus { border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(42,82,152,0.1); }
+    .form-control:disabled { background: #f1f5f9; cursor: not-allowed; }
+
+    select.form-control {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: left 12px center;
+      padding-left: 32px;
+    }
+
+    textarea.form-control { resize: vertical; min-height: 80px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-hint { font-size: 11px; color: var(--text-light); margin-top: 4px; }
+
+    /* ==================== النوافذ المنبثقة ==================== */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(15,36,64,0.6);
+      backdrop-filter: blur(4px);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      visibility: hidden;
+      transition: var(--transition);
+    }
+
+    .modal-overlay.active { opacity: 1; visibility: visible; }
+
+    .modal {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-xl);
+      transform: scale(0.9) translateY(20px);
+      transition: var(--transition);
+    }
+
+    .modal-overlay.active .modal { transform: scale(1) translateY(0); }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--bg-card);
+      z-index: 10;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+
+    .modal-header h3 { font-size: 17px; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+
+    .modal-close {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: #f1f5f9;
+      color: var(--text-light);
+      font-size: 18px;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .modal-close:hover { background: var(--danger); color: #fff; transform: rotate(90deg); }
+
+    .modal-body { padding: 22px; }
+
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 10px;
+      padding: 16px 22px;
+      border-top: 1px solid var(--border);
+      background: #f8fafc;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      flex-wrap: wrap;
+    }
+
+    /* ==================== التنبيهات ==================== */
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      z-index: 3000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: calc(100% - 40px);
+    }
+
+    .toast {
+      background: var(--bg-card);
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 280px;
+      max-width: 400px;
+      border-right: 4px solid var(--info);
+      animation: slideInLeft 0.3s ease;
+      font-size: 13.5px;
+      font-weight: 500;
+    }
+
+    .toast.success { border-right-color: var(--success); }
+    .toast.error { border-right-color: var(--danger); }
+    .toast.warning { border-right-color: var(--warning); }
+    .toast.info { border-right-color: var(--info); }
+
+    .toast-icon { font-size: 20px; flex-shrink: 0; }
+
+    .toast-close {
+      margin-right: auto;
+      background: none;
+      border: none;
+      color: var(--text-light);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 2px;
+    }
+
+    @keyframes slideInLeft { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes slideOutLeft { from { transform: translateX(0); opacity: 1; } to { transform: translateX(-100%); opacity: 0; } }
+
+    /* ==================== التنبيهات التحذيرية ==================== */
+    .alert {
+      padding: 14px 18px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+      font-size: 13.5px;
+      line-height: 1.6;
+    }
+
+    .alert-warning { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); color: #92400e; }
+    .alert-danger { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #991b1b; }
+    .alert-info { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); color: #1e40af; }
+    .alert-success { background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #065f46; }
+    .alert-icon { font-size: 20px; flex-shrink: 0; }
+
+    /* ==================== البحث ==================== */
+    .search-bar { position: relative; flex: 1; min-width: 200px; max-width: 400px; }
+
+    .search-bar input {
+      width: 100%;
+      padding: 10px 40px 10px 14px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: 'Cairo', sans-serif;
+      font-size: 13.5px;
+      outline: none;
+      transition: var(--transition);
+      background: #fff;
+    }
+
+    .search-bar input:focus { border-color: var(--primary-light); box-shadow: 0 0 0 3px rgba(42,82,152,0.1); }
+
+    .search-bar .search-icon {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-light);
+      font-size: 16px;
+      pointer-events: none;
+    }
+
+    .filters-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 16px 20px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .filters-bar .form-control { width: auto; min-width: 140px; padding: 8px 12px; font-size: 12.5px; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+    /* ==================== الرسوم البيانية ==================== */
+    .chart-container {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+
+    .chart-container h3 { font-size: 15px; font-weight: 700; color: var(--primary); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .chart-wrapper { position: relative; height: 280px; width: 100%; }
+
+    /* ==================== تفاصيل الصنف ==================== */
+    .item-detail-header {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .detail-card {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .detail-card .detail-value { font-size: 22px; font-weight: 800; color: var(--primary); }
+    .detail-card .detail-label { font-size: 12px; color: var(--text-light); margin-top: 4px; font-weight: 500; }
+
+    /* ==================== Mobile Cards ==================== */
+    .mobile-cards {
+      display: none;
+      padding: 12px;
+      gap: 12px;
+      flex-direction: column;
+    }
+
+    .mobile-card {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      border-right: 4px solid var(--primary);
+    }
+
+    .mobile-card.success { border-right-color: var(--success); }
+    .mobile-card.danger { border-right-color: var(--danger); }
+    .mobile-card.warning { border-right-color: var(--warning); }
+
+    .mobile-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .mobile-card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--primary);
+      flex: 1;
+      min-width: 0;
+      word-break: break-word;
+    }
+
+    .mobile-card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .mobile-card-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      gap: 10px;
+      padding: 4px 0;
+    }
+
+    .mobile-card-row .label {
+      color: var(--text-light);
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+
+    .mobile-card-row .value {
+      font-weight: 600;
+      color: var(--text);
+      text-align: left;
+      word-break: break-word;
+    }
+
+    .mobile-card-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .mobile-card-actions .btn { flex: 1; min-width: 80px; }
+
+    /* ==================== Responsive ==================== */
+    @media (max-width: 1024px) {
+      .cards-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 768px) {
+      .sidebar { transform: translateX(100%); width: 280px; max-width: 85vw; }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-close { display: flex; }
+      .main-content { margin-right: 0; width: 100%; padding: 16px; }
+      .menu-toggle { display: flex; }
+      .page-title { font-size: 18px; }
+      .page-subtitle { font-size: 12px; }
+      .topbar { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 16px; }
+      .topbar-actions { justify-content: stretch; }
+      .topbar-actions .btn { flex: 1; padding: 10px 12px; font-size: 12.5px; }
+      .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+      .card { padding: 14px; }
+      .card-value { font-size: 20px; }
+      .card-label { font-size: 11px; }
+      .card-icon { width: 36px; height: 36px; font-size: 18px; }
+      .card-header { margin-bottom: 8px; }
+      .table-container .table-wrapper { display: none; }
+      .table-container .mobile-cards { display: flex; }
+      .filters-bar { flex-direction: column; align-items: stretch; padding: 12px 16px; gap: 8px; }
+      .filters-bar .form-control { width: 100%; min-width: 0; }
+      .search-bar { max-width: 100%; }
+      .form-row { grid-template-columns: 1fr; gap: 12px; }
+      .modal-overlay { padding: 0; align-items: flex-end; }
+      .modal { max-width: 100%; max-height: 92vh; border-radius: var(--radius-lg) var(--radius-lg) 0 0; transform: translateY(100%); }
+      .modal-overlay.active .modal { transform: translateY(0); }
+      .modal-footer { padding: 14px 18px; flex-direction: column-reverse; gap: 8px; }
+      .modal-footer .btn { width: 100%; }
+      .alert { padding: 12px 14px; font-size: 12.5px; gap: 10px; }
+      .alert-icon { font-size: 18px; }
+      .toast-container { left: 12px; right: 12px; bottom: 12px; max-width: none; }
+      .toast { min-width: auto; max-width: 100%; padding: 12px 14px; font-size: 12.5px; }
+      .chart-wrapper { height: 220px; }
+      .chart-container { padding: 14px; margin-bottom: 16px; }
+      .chart-container h3 { font-size: 13.5px; }
+      .item-detail-header { grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+      .detail-card { padding: 12px; }
+      .detail-card .detail-value { font-size: 18px; }
+      .detail-card .detail-label { font-size: 11px; }
+      .btn { padding: 10px 16px; font-size: 13px; }
+    }
+
+    @media (max-width: 480px) {
+      .main-content { padding: 12px; }
+      .cards-grid { gap: 8px; }
+      .card { padding: 12px; }
+      .card-value { font-size: 18px; }
+      .card-icon { width: 32px; height: 32px; font-size: 16px; }
+      .page-title { font-size: 16px; }
+      .mobile-card { padding: 12px; }
+      .mobile-card-title { font-size: 14px; }
+      .mobile-card-row { font-size: 12px; }
+    }
+
+    .fade-in { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .hidden { display: none !important; }
+    .mt-1 { margin-top: 8px; }
+    .mt-2 { margin-top: 16px; }
+    .mt-3 { margin-top: 24px; }
+    .w-100 { width: 100%; }
+
+    @media print {
+      .sidebar, .topbar, .filters-bar, .btn, .modal-overlay, .toast-container, .sidebar-overlay { display: none !important; }
+      .main-content { margin-right: 0 !important; padding: 0 !important; width: 100% !important; }
+      .table-container { box-shadow: none; border: 1px solid #000; }
+      .table-container .table-wrapper { display: block !important; }
+      .table-container .mobile-cards { display: none !important; }
+      thead th { background: #000 !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body { background: #fff; }
+    }
+
+    /* ==================== قالب PDF ==================== */
+    #pdfTemplate { position: fixed; left: -99999px; top: 0; width: 1400px; background: #fff; font-family: 'Cairo', sans-serif; direction: rtl; color: #1e293b; }
+
+    .pdf-page {
+      width: 1400px; min-height: 990px; height: 990px;
+      background: #fff; padding: 25px 35px;
+      display: flex; flex-direction: column;
+      page-break-after: always; box-sizing: border-box; overflow: hidden;
+    }
+
+    .pdf-page:last-child { page-break-after: auto; }
+
+    .pdf-header {
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 3px solid #1e3a5f; padding-bottom: 12px; margin-bottom: 14px; flex-shrink: 0;
+    }
+
+    .pdf-header .pdf-logo { font-size: 46px; }
+    .pdf-header .pdf-company { text-align: right; flex: 1; padding-right: 16px; }
+    .pdf-header .pdf-company h1 { font-size: 24px; font-weight: 800; color: #1e3a5f; margin-bottom: 3px; }
+    .pdf-header .pdf-company p { font-size: 14px; color: #64748b; }
+    .pdf-header .pdf-meta { text-align: left; font-size: 13px; color: #64748b; line-height: 1.7; }
+    .pdf-header .pdf-meta strong { color: #1e3a5f; }
+
+    .pdf-title-bar {
+      background: linear-gradient(135deg, #1e3a5f, #2a5298);
+      color: #fff; padding: 12px 22px; border-radius: 8px;
+      text-align: center; font-size: 19px; font-weight: 700;
+      margin-bottom: 14px; flex-shrink: 0;
+    }
+
+    .pdf-summary { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; flex-shrink: 0; }
+
+    .pdf-summary-item {
+      flex: 1; min-width: 140px;
+      background: #f8fafc; border: 1px solid #e2e8f0;
+      border-radius: 8px; padding: 10px 16px; text-align: center;
+    }
+
+    .pdf-summary-item .val { font-size: 22px; font-weight: 800; color: #1e3a5f; }
+    .pdf-summary-item .lbl { font-size: 12.5px; color: #64748b; margin-top: 3px; }
+
+    .pdf-table-wrapper { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+
+    .pdf-page table { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
+
+    .pdf-page table thead th {
+      background: #1e3a5f; color: #fff; padding: 11px 8px; text-align: center;
+      font-weight: 700; border: 1px solid #0f2440; font-size: 13.5px; white-space: nowrap;
+    }
+
+    .pdf-page table tbody td {
+      padding: 9px 8px; border: 1px solid #cbd5e1; text-align: center;
+      font-size: 13px; word-wrap: break-word; overflow: hidden;
+      line-height: 1.35; height: 38px;
+    }
+
+    .pdf-page table tbody tr:nth-child(even) { background: #f8fafc; }
+    .pdf-page table tbody tr:nth-child(odd) { background: #fff; }
+
+    .pdf-footer {
+      margin-top: 14px; padding-top: 12px; border-top: 2px solid #e2e8f0;
+      display: flex; justify-content: space-between; align-items: flex-end;
+      font-size: 12px; color: #64748b; flex-shrink: 0;
+    }
+
+    .pdf-footer .signature { text-align: center; }
+
+    .pdf-footer .signature .line {
+      width: 170px; border-top: 1px solid #94a3b8; margin-top: 32px;
+      padding-top: 6px; font-size: 12.5px; font-weight: 600; color: #1e3a5f;
+    }
+
+    .pdf-footer .center-info { text-align: center; flex: 1; padding: 0 20px; }
+
+    .pdf-page-number {
+      display: inline-block; background: #1e3a5f; color: #fff;
+      padding: 3px 12px; border-radius: 10px; font-size: 11.5px; font-weight: 700; margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- شاشة التحميل -->
+  <div class="loading-screen" id="loadingScreen">
+    <div class="loader-logo">🏗️</div>
+    <h1>نظام إدارة مخزن مواد الموقع</h1>
+    <p>جاري الاتصال بقاعدة البيانات...</p>
+    <div class="loader-spinner"></div>
+    <div class="loading-status" id="loadingStatus">تهيئة Firebase...</div>
+  </div>
+
+  <div class="app-container">
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <button class="sidebar-close" onclick="closeSidebar()">✕</button>
+        <span class="logo-icon">🏗️</span>
+        <h1>نظام إدارة مخزن مواد الموقع</h1>
+        <div class="subtitle">Site Warehouse Management</div>
+      </div>
+      <nav class="sidebar-nav" id="sidebarNav"></nav>
+    </aside>
+
+    <main class="main-content" id="mainContent">
+      <div class="topbar">
+        <div class="topbar-left">
+          <button class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">☰</button>
+          <div>
+            <h2 class="page-title" id="pageTitle">الرئيسية</h2>
+            <div class="page-subtitle" id="pageSubtitle">لوحة التحكم الرئيسية</div>
+          </div>
+        </div>
+        <div class="topbar-actions" id="topbarActions"></div>
+      </div>
+      <div id="pageContent"></div>
+    </main>
+  </div>
+
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modalBox">
+      <div class="modal-header">
+        <h3 id="modalTitle">عنوان</h3>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer" id="modalFooter"></div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+  <div id="pdfTemplate"></div>
+
+  <script>
+    /* ================================================================
+       نظام إدارة مخزن مواد الموقع - Firebase Realtime Database
+       ================================================================ */
+
+    // ==================== إعدادات Firebase ====================
+    const firebaseConfig = {
+      apiKey: "AIzaSyDDHwYOfLPK1MLdzZwgukCpxFvaxwnHjLs",
+      authDomain: "bloom-store-28c12.firebaseapp.com",
+      databaseURL: "https://bloom-store-28c12-default-rtdb.firebaseio.com",
+      projectId: "bloom-store-28c12",
+      storageBucket: "bloom-store-28c12.firebasestorage.app",
+      messagingSenderId: "482044642196",
+      appId: "1:482044642196:web:37858a63194372ed59c581",
+      measurementId: "G-718YG7586Z"
+    };
+
+    // تهيئة Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const ROOT_PATH = 'warehouse';
+
+    // ==================== المتغيرات العامة ====================
+    const UNITS = ['قطعة', 'متر', 'متر مربع', 'متر مكعب', 'كيلو', 'طن', 'لفة', 'بكرة', 'كرتونة', 'شوال', 'شيكارة', 'لتر', 'جركن', 'وحدة'];
+    let isConnected = false;
+    let dataRefs = {};
+
+    // الحالة العامة - بدون بيانات افتراضية
+    let state = {
+      sections: [],
+      items: [],
+      movements: [],
+      people: [],
+      suppliers: [],
+      auditLog: [],
+      settings: {
+        appName: 'نظام إدارة مخزن مواد الموقع',
+        initialized: false,
+        lastBackup: null
+      }
+    };
+
+    // ==================== الأقسام الافتراضية (تُنشأ أول مرة فقط) ====================
+    const DEFAULT_SECTIONS = [
+      { id: 'plumbing', name: 'السباكة', icon: '🔧', color: '#0ea5e9', description: 'مواد السباكة والصرف', isDefault: true },
+      { id: 'electrical', name: 'الكهرباء', icon: '⚡', color: '#f59e0b', description: 'مواد الكهرباء والإضاءة', isDefault: true },
+      { id: 'posttension', name: 'Post Tension', icon: '🏗️', color: '#8b5cf6', description: 'مواد Post Tension', isDefault: true }
+    ];
+
+    // ==================== التهيئة ====================
+    document.addEventListener('DOMContentLoaded', async () => {
+      updateLoadingStatus('جاري الاتصال بـ Firebase...');
+
+      // مراقبة حالة الاتصال
+      db.ref('.info/connected').on('value', (snap) => {
+        isConnected = snap.val() === true;
+        updateConnectionStatus();
+      });
+
+      // انتظار أول تحميل للبيانات
+      await initializeFirebaseData();
+
+      updateLoadingStatus('جاري تحميل البيانات...');
+      await new Promise(r => setTimeout(r, 500));
+
+      // إخفاء شاشة التحميل
+      document.getElementById('loadingScreen').classList.add('hidden');
+
+      // بدء المزامنة الفورية
+      setupRealtimeSync();
+
+      renderSidebar();
+      navigateTo('dashboard');
+    });
+
+    function updateLoadingStatus(text) {
+      const el = document.getElementById('loadingStatus');
+      if (el) el.textContent = text;
+    }
+
+    // ==================== تهيئة بيانات Firebase ====================
+    async function initializeFirebaseData() {
+      try {
+        // التحقق من وجود أقسام افتراضية
+        const sectionsSnap = await db.ref(`${ROOT_PATH}/sections`).once('value');
+        const sections = sectionsSnap.val();
+
+        if (!sections || Object.keys(sections).length === 0) {
+          // أول تشغيل - إنشاء الأقسام الافتراضية فقط (بدون أصناف أو حركات)
+          updateLoadingStatus('جاري إنشاء الأقسام الافتراضية...');
+          const defaultSectionsObj = {};
+          DEFAULT_SECTIONS.forEach(s => { defaultSectionsObj[s.id] = s; });
+          await db.ref(`${ROOT_PATH}/sections`).set(defaultSectionsObj);
+
+          // إنشاء الإعدادات
+          await db.ref(`${ROOT_PATH}/settings`).set({
+            appName: 'نظام إدارة مخزن مواد الموقع',
+            initialized: true,
+            createdAt: new Date().toISOString()
+          });
+        }
+      } catch (err) {
+        console.error('خطأ في التهيئة:', err);
+        updateLoadingStatus('خطأ في الاتصال: ' + err.message);
+      }
+    }
+
+    // ==================== المزامنة الفورية ====================
+    function setupRealtimeSync() {
+      // مراقبة كل المسارات
+      const paths = ['sections', 'items', 'movements', 'people', 'suppliers', 'auditLog', 'settings'];
+
+      paths.forEach(path => {
+        dataRefs[path] = db.ref(`${ROOT_PATH}/${path}`);
+        dataRefs[path].on('value', (snap) => {
+          const data = snap.val();
+          if (path === 'settings') {
+            state.settings = data ? { ...state.settings, ...data } : state.settings;
+          } else if (data) {
+            // تحويل Object إلى Array مع الحفاظ على id
+            state[path] = Object.entries(data).map(([id, val]) => {
+              if (typeof val === 'object' && val !== null) {
+                return { id: val.id || id, ...val };
+              }
+              return { id, value: val };
+            });
+          } else {
+            state[path] = [];
+          }
+
+          // إعادة الرسم عند التغيير
+          if (window._currentPage) {
+            refreshCurrentPage();
+          }
+        });
+      });
+    }
+
+    // ==================== حفظ البيانات إلى Firebase ====================
+    async function saveToFirebase(path, data) {
+      try {
+        if (data === null) {
+          await db.ref(`${ROOT_PATH}/${path}`).remove();
+        } else {
+          await db.ref(`${ROOT_PATH}/${path}`).set(data);
+        }
+        return { success: true };
+      } catch (err) {
+        console.error('خطأ في الحفظ:', err);
+        showToast('فشل الحفظ: ' + err.message, 'error');
+        return { success: false, error: err.message };
+      }
+    }
+
+    async function updateInFirebase(path, id, data) {
+      try {
+        await db.ref(`${ROOT_PATH}/${path}/${id}`).update(data);
+        return { success: true };
+      } catch (err) {
+        console.error('خطأ في التحديث:', err);
+        return { success: false, error: err.message };
+      }
+    }
+
+    async function pushToFirebase(path, id, data) {
+      try {
+        await db.ref(`${ROOT_PATH}/${path}/${id}`).set(data);
+        return { success: true };
+      } catch (err) {
+        console.error('خطأ في الإضافة:', err);
+        return { success: false, error: err.message };
+      }
+    }
+
+    async function removeFromFirebase(path, id) {
+      try {
+        await db.ref(`${ROOT_PATH}/${path}/${id}`).remove();
+        return { success: true };
+      } catch (err) {
+        console.error('خطأ في الحذف:', err);
+        return { success: false, error: err.message };
+      }
+    }
+
+    // ==================== تحديث الحالة عند التغيير ====================
+    function refreshCurrentPage() {
+      const page = window._currentPage;
+      if (!page) return;
+      const content = document.getElementById('pageContent');
+      const actions = document.getElementById('topbarActions');
+      const title = document.getElementById('pageTitle');
+      const subtitle = document.getElementById('pageSubtitle');
+
+      // إعادة رسم الصفحة الحالية دون تغيير الحالة
+      if (page === 'dashboard') renderDashboard(content, actions);
+      else if (page === 'items') renderAllItems(content, actions);
+      else if (page === 'movements') renderMovementsPage(content, actions);
+      else if (page === 'people') renderPeoplePage(content, actions);
+      else if (page === 'reports') { /* لا تحديث تلقائي */ }
+      else if (page === 'backup') renderBackupPage(content, actions);
+      else if (page === 'settings') renderSettingsPage(content, actions);
+      else if (page.startsWith('section-')) {
+        const sectionId = page.replace('section-', '');
+        const section = getSectionById(sectionId);
+        if (section) renderSectionPage(content, actions, section);
+      }
+    }
+
+    function updateConnectionStatus() {
+      const actions = document.getElementById('topbarActions');
+      if (!actions) return;
+      let indicator = document.getElementById('connStatus');
+      if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = 'connStatus';
+        indicator.className = 'connection-status';
+        actions.insertBefore(indicator, actions.firstChild);
+      }
+      indicator.className = `connection-status ${isConnected ? '' : 'offline'}`;
+      indicator.innerHTML = `<span class="dot"></span>${isConnected ? 'متصل' : 'غير متصل'}`;
+    }
+
+    // ==================== دوال مساعدة ====================
+    function generateId(prefix) {
+      const num = Math.floor(Math.random() * 90000) + 10000;
+      return `${prefix}-${num}`;
+    }
+
+    function generateMovementId(type) {
+      const prefix = type === 'receipt' ? 'REC' : 'ISS';
+      const prefixMovements = state.movements.filter(m => m.id.startsWith(prefix));
+      const maxNum = prefixMovements.reduce((max, m) => {
+        const num = parseInt(m.id.split('-')[1]) || 0;
+        return num > max ? num : max;
+      }, 0);
+      return `${prefix}-${String(maxNum + 1).padStart(5, '0')}`;
+    }
+
+    async function addAuditLog(action, details) {
+      const log = {
+        id: generateId('AUD'),
+        action,
+        details,
+        timestamp: new Date().toISOString()
+      };
+      try {
+        await db.ref(`${ROOT_PATH}/auditLog/${log.id}`).set(log);
+        // حذف القديمة إذا تجاوزت 500
+        const snap = await db.ref(`${ROOT_PATH}/auditLog`).once('value');
+        const logs = snap.val() || {};
+        const entries = Object.entries(logs);
+        if (entries.length > 500) {
+          entries.sort((a, b) => new Date(a[1].timestamp) - new Date(b[1].timestamp));
+          const toDelete = entries.slice(0, entries.length - 500);
+          for (const [id] of toDelete) {
+            await db.ref(`${ROOT_PATH}/auditLog/${id}`).remove();
+          }
+        }
+      } catch (e) { console.error('خطأ في تسجيل العملية:', e); }
+    }
+
+    function calculateBalance(itemId) {
+      const item = state.items.find(i => i.id === itemId);
+      if (!item) return { opening: 0, received: 0, issued: 0, current: 0 };
+      const movements = state.movements.filter(m => m.itemId === itemId);
+      const received = movements.filter(m => m.type === 'receipt').reduce((sum, m) => sum + (m.qty || 0), 0);
+      const issued = movements.filter(m => m.type === 'issue').reduce((sum, m) => sum + (m.qty || 0), 0);
+      const current = (item.openingQty || 0) + received - issued;
+      return { opening: item.openingQty || 0, received, issued, current };
+    }
+
+    function getItemStatus(itemId) {
+      const item = state.items.find(i => i.id === itemId);
+      if (!item) return { status: 'unknown', label: 'غير معروف', color: 'badge-info', icon: '❓' };
+      const balance = calculateBalance(itemId).current;
+      const min = item.minQty || 0;
+      if (balance <= 0) return { status: 'out', label: 'نفد', color: 'badge-danger', icon: '🔴' };
+      if (balance <= min) return { status: 'low', label: 'منخفض', color: 'badge-warning', icon: '⚠️' };
+      return { status: 'ok', label: 'متوفر', color: 'badge-success', icon: '🟢' };
+    }
+
+    function getSectionItems(sectionId) { return state.items.filter(i => i.sectionId === sectionId); }
+    function getSectionById(id) { return state.sections.find(s => s.id === id); }
+    function getItemById(id) { return state.items.find(i => i.id === id); }
+    function getPersonById(id) { return state.people.find(p => p.id === id); }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '-';
+      try {
+        const d = new Date(dateStr + 'T00:00:00');
+        return d.toLocaleDateString('ar-EG', { year: 'numeric', month: '2-digit', day: '2-digit' });
+      } catch { return dateStr; }
+    }
+
+    // ==================== التنبيهات ====================
+    function showToast(message, type = 'info', duration = 3500) {
+      const container = document.getElementById('toastContainer');
+      const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `
+        <span class="toast-icon">${icons[type] || 'ℹ️'}</span>
+        <span>${message}</span>
+        <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+      `;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.animation = 'slideOutLeft 0.3s ease forwards';
+        setTimeout(() => toast.remove(), 300);
+      }, duration);
+    }
+
+    function openModal(title, bodyHTML, footerHTML = '') {
+      document.getElementById('modalTitle').innerHTML = title;
+      document.getElementById('modalBody').innerHTML = bodyHTML;
+      document.getElementById('modalFooter').innerHTML = footerHTML;
+      document.getElementById('modalOverlay').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    document.getElementById('modalOverlay').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeModal();
+    });
+
+    // ==================== الشريط الجانبي ====================
+    function renderSidebar() {
+      const nav = document.getElementById('sidebarNav');
+      const currentPage = window._currentPage || 'dashboard';
+
+      let html = '';
+      html += `<div class="nav-section-title">القائمة الرئيسية</div>`;
+      html += navItem('dashboard', '🏠', 'الرئيسية', currentPage);
+      html += navItem('items', '📦', 'الأصناف', currentPage);
+      html += navItem('movements', '🔄', 'حركة المخزن', currentPage);
+      html += navItem('people', '👥', 'الأشخاص', currentPage);
+      html += navItem('reports', '📊', 'التقارير', currentPage);
+      html += navItem('backup', '💾', 'النسخ الاحتياطي', currentPage);
+      html += navItem('settings', '⚙️', 'الإعدادات', currentPage);
+
+      html += `<div class="nav-section-title">أقسام المخزن</div>`;
+      state.sections.forEach(section => {
+        const count = getSectionItems(section.id).length;
+        const isActive = currentPage === `section-${section.id}`;
+        html += `
+          <div class="nav-item ${isActive ? 'active' : ''}" onclick="navigateTo('section-${section.id}')" style="${isActive ? `background: linear-gradient(90deg, ${section.color}25, ${section.color}10); box-shadow: inset 3px 0 0 ${section.color};` : ''}">
+            <span class="nav-icon">${section.icon || '📂'}</span>
+            <span>${section.name}</span>
+            <span class="nav-badge">${count}</span>
+            ${!section.isDefault ? `<span class="nav-delete" onclick="event.stopPropagation(); deleteSection('${section.id}')" title="حذف القسم">🗑️</span>` : ''}
+          </div>
+        `;
+      });
+
+      html += `
+        <div class="nav-item" onclick="addNewSection()" style="color: var(--accent); margin-top: 8px;">
+          <span class="nav-icon">➕</span>
+          <span>إضافة بند جديد</span>
+        </div>
+      `;
+
+      nav.innerHTML = html;
+    }
+
+    function navItem(page, icon, label, currentPage) {
+      const isActive = currentPage === page;
+      return `
+        <div class="nav-item ${isActive ? 'active' : ''}" onclick="navigateTo('${page}')">
+          <span class="nav-icon">${icon}</span>
+          <span>${label}</span>
+        </div>
+      `;
+    }
+
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      sidebar.classList.add('open');
+      overlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      sidebar.classList.remove('open');
+      overlay.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    // ==================== التنقل ====================
+    function navigateTo(page) {
+      window._currentPage = page;
+      renderSidebar();
+
+      const content = document.getElementById('pageContent');
+      const title = document.getElementById('pageTitle');
+      const subtitle = document.getElementById('pageSubtitle');
+      const actions = document.getElementById('topbarActions');
+
+      if (window.innerWidth <= 768) closeSidebar();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      actions.innerHTML = '';
+      setTimeout(updateConnectionStatus, 50);
+
+      if (page === 'dashboard') {
+        title.textContent = 'الرئيسية';
+        subtitle.textContent = 'لوحة التحكم الرئيسية';
+        renderDashboard(content, actions);
+      } else if (page === 'items') {
+        title.textContent = 'الأصناف';
+        subtitle.textContent = 'جميع الأصناف في المخزن';
+        renderAllItems(content, actions);
+      } else if (page === 'movements') {
+        title.textContent = 'حركة المخزن';
+        subtitle.textContent = 'سجل جميع الحركات';
+        renderMovementsPage(content, actions);
+      } else if (page === 'people') {
+        title.textContent = 'الأشخاص';
+        subtitle.textContent = 'إدارة الأشخاص المسجلين';
+        renderPeoplePage(content, actions);
+      } else if (page === 'reports') {
+        title.textContent = 'التقارير';
+        subtitle.textContent = 'تقارير المخزن';
+        renderReportsPage(content, actions);
+      } else if (page === 'backup') {
+        title.textContent = 'النسخ الاحتياطي';
+        subtitle.textContent = 'إنشاء واسترجاع النسخ الاحتياطية';
+        renderBackupPage(content, actions);
+      } else if (page === 'settings') {
+        title.textContent = 'الإعدادات';
+        subtitle.textContent = 'إعدادات البرنامج';
+        renderSettingsPage(content, actions);
+      } else if (page.startsWith('section-')) {
+        const sectionId = page.replace('section-', '');
+        const section = getSectionById(sectionId);
+        if (section) {
+          title.textContent = `مخزن ${section.name}`;
+          subtitle.textContent = section.description || `إدارة أصناف ${section.name}`;
+          renderSectionPage(content, actions, section);
+        } else navigateTo('dashboard');
+      }
+    }
+
+    // ==================== Helper: Mobile Card ====================
+    function createMobileCard(title, badge, rows, actions, colorClass = '') {
+      return `
+        <div class="mobile-card ${colorClass} fade-in">
+          <div class="mobile-card-header">
+            <div class="mobile-card-title">${title}</div>
+            ${badge || ''}
+          </div>
+          <div class="mobile-card-body">
+            ${rows.map(r => `
+              <div class="mobile-card-row">
+                <span class="label">${r.label}:</span>
+                <span class="value">${r.value}</span>
+              </div>
+            `).join('')}
+          </div>
+          ${actions ? `<div class="mobile-card-actions">${actions}</div>` : ''}
+        </div>
+      `;
+    }
+
+    // ==================== لوحة التحكم ====================
+    function renderDashboard(content, actions) {
+      const totalItems = state.items.length;
+      const totalQty = state.items.reduce((sum, item) => sum + calculateBalance(item.id).current, 0);
+      const plumbingCount = getSectionItems('plumbing').length;
+      const electricalCount = getSectionItems('electrical').length;
+      const posttensionCount = getSectionItems('posttension').length;
+      const receipts = state.movements.filter(m => m.type === 'receipt').length;
+      const issues = state.movements.filter(m => m.type === 'issue').length;
+
+      const lowStock = state.items.filter(item => {
+        const bal = calculateBalance(item.id).current;
+        return bal > 0 && bal <= (item.minQty || 0);
+      });
+      const outOfStock = state.items.filter(item => calculateBalance(item.id).current <= 0);
+
+      const recentMovements = [...state.movements].sort((a, b) => {
+        const dateA = new Date(a.date + 'T' + (a.time || '00:00'));
+        const dateB = new Date(b.date + 'T' + (b.time || '00:00'));
+        return dateB - dateA;
+      }).slice(0, 10);
+
+      let html = '';
+
+      if (totalItems === 0) {
+        html += `
+          <div class="alert alert-info fade-in">
+            <span class="alert-icon">👋</span>
+            <div>
+              <strong>مرحبًا!</strong> قاعدة البيانات جاهزة. ابدأ بإضافة أول صنف من خلال الأقسام الموجودة في القائمة الجانبية.
+            </div>
+          </div>
+        `;
+      }
+
+      if (lowStock.length > 0) {
+        html += `
+          <div class="alert alert-warning fade-in">
+            <span class="alert-icon">⚠️</span>
+            <div>
+              <strong>تنبيه:</strong> يوجد ${lowStock.length} صنف وصل للحد الأدنى.
+              <div style="margin-top:4px;font-size:12px;">${lowStock.map(i => i.name).join('، ')}</div>
+            </div>
+          </div>
+        `;
+      }
+      if (outOfStock.length > 0) {
+        html += `
+          <div class="alert alert-danger fade-in">
+            <span class="alert-icon">🔴</span>
+            <div>
+              <strong>تنبيه:</strong> يوجد ${outOfStock.length} صنف نفد من المخزن.
+              <div style="margin-top:4px;font-size:12px;">${outOfStock.map(i => i.name).join('، ')}</div>
+            </div>
+          </div>
+        `;
+      }
+
+      html += `
+        <div class="cards-grid">
+          ${statCard('📦', 'إجمالي الأصناف', totalItems, 'primary')}
+          ${statCard('📊', 'إجمالي الكميات', totalQty.toLocaleString(), 'info')}
+          ${statCard('🔧', 'أصناف السباكة', plumbingCount, 'plumbing')}
+          ${statCard('⚡', 'أصناف الكهرباء', electricalCount, 'electrical')}
+          ${statCard('🏗️', 'أصناف Post Tension', posttensionCount, 'posttension')}
+          ${statCard('⚠️', 'أصناف منخفضة', lowStock.length, 'warning')}
+          ${statCard('🔴', 'أصناف نفدت', outOfStock.length, 'danger')}
+          ${statCard('📥', 'إجمالي الاستلام', receipts, 'success')}
+          ${statCard('📤', 'إجمالي الصرف', issues, 'danger')}
+        </div>
+      `;
+
+      html += `
+        <div class="grid-2">
+          <div class="chart-container">
+            <h3>📈 حركة الاستلام والصرف</h3>
+            <div class="chart-wrapper"><canvas id="chartMonthly"></canvas></div>
+          </div>
+          <div class="chart-container">
+            <h3>📊 عدد الأصناف في كل قسم</h3>
+            <div class="chart-wrapper"><canvas id="chartSections"></canvas></div>
+          </div>
+        </div>
+      `;
+
+      html += `
+        <div class="table-container">
+          <div class="table-header">
+            <h3>🕐 آخر حركة في المخزن</h3>
+            <button class="btn btn-sm btn-outline" onclick="navigateTo('movements')">عرض الكل</button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>التاريخ</th><th>الوقت</th><th>نوع الحركة</th><th>الصنف</th>
+                  <th>الكمية</th><th>الشخص</th><th>البند</th><th>ملاحظات</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${recentMovements.length === 0 ? `<tr><td colspan="8" class="table-empty"><span class="empty-icon">📭</span>لا توجد حركات بعد</td></tr>` :
+                  recentMovements.map(m => {
+                    const item = getItemById(m.itemId);
+                    const section = item ? getSectionById(item.sectionId) : null;
+                    const typeBadge = m.type === 'receipt' ? '<span class="badge badge-success">📥 استلام</span>' : '<span class="badge badge-danger">📤 صرف</span>';
+                    return `
+                      <tr>
+                        <td>${formatDate(m.date)}</td>
+                        <td>${m.time || '-'}</td>
+                        <td>${typeBadge}</td>
+                        <td>${item ? item.name : 'غير معروف'}</td>
+                        <td>${m.qty} ${m.unit || (item ? item.unit : '')}</td>
+                        <td>${m.person || '-'}</td>
+                        <td>${section ? section.name : '-'}</td>
+                        <td>${m.notes || '-'}</td>
+                      </tr>
+                    `;
+                  }).join('')
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="mobile-cards">
+            ${recentMovements.length === 0 ? '<div class="table-empty"><span class="empty-icon">📭</span>لا توجد حركات بعد</div>' :
+              recentMovements.map(m => {
+                const item = getItemById(m.itemId);
+                const section = item ? getSectionById(item.sectionId) : null;
+                const typeBadge = m.type === 'receipt'
+                  ? '<span class="badge badge-success">📥 استلام</span>'
+                  : '<span class="badge badge-danger">📤 صرف</span>';
+                return createMobileCard(
+                  item ? item.name : 'غير معروف',
+                  typeBadge,
+                  [
+                    { label: 'التاريخ', value: formatDate(m.date) + ' - ' + (m.time || '') },
+                    { label: 'الكمية', value: `${m.qty} ${m.unit || (item ? item.unit : '')}` },
+                    { label: 'الشخص', value: m.person || '-' },
+                    { label: 'البند', value: section ? section.name : '-' }
+                  ],
+                  '',
+                  m.type === 'receipt' ? 'success' : 'danger'
+                );
+              }).join('')
+            }
+          </div>
+        </div>
+      `;
+
+      content.innerHTML = html;
+      setTimeout(() => { renderMonthlyChart(); renderSectionsChart(); }, 100);
+    }
+
+    function statCard(icon, label, value, colorClass) {
+      return `
+        <div class="card ${colorClass} fade-in">
+          <div class="card-header"><div class="card-icon ${colorClass}">${icon}</div></div>
+          <div class="card-value">${value}</div>
+          <div class="card-label">${label}</div>
+        </div>
+      `;
+    }
+
+    function renderMonthlyChart() {
+      const ctx = document.getElementById('chartMonthly');
+      if (!ctx) return;
+      const monthlyData = {};
+      state.movements.forEach(m => {
+        const month = m.date ? m.date.substring(0, 7) : 'unknown';
+        if (!monthlyData[month]) monthlyData[month] = { receipt: 0, issue: 0 };
+        if (m.type === 'receipt') monthlyData[month].receipt += m.qty || 0;
+        else monthlyData[month].issue += m.qty || 0;
+      });
+      const labels = Object.keys(monthlyData).sort();
+      const receiptData = labels.map(l => monthlyData[l].receipt);
+      const issueData = labels.map(l => monthlyData[l].issue);
+      const isMobile = window.innerWidth <= 768;
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels.length ? labels : ['لا توجد بيانات'],
+          datasets: [
+            { label: 'استلام', data: receiptData.length ? receiptData : [0], backgroundColor: 'rgba(16,185,129,0.7)', borderColor: '#10b981', borderWidth: 1, borderRadius: 6 },
+            { label: 'صرف', data: issueData.length ? issueData : [0], backgroundColor: 'rgba(239,68,68,0.7)', borderColor: '#ef4444', borderWidth: 1, borderRadius: 6 }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { font: { family: 'Cairo', size: isMobile ? 10 : 12 }, color: '#1e293b' } } },
+          scales: {
+            y: { beginAtZero: true, ticks: { font: { family: 'Cairo' }, color: '#64748b' }, grid: { color: '#e2e8f0' } },
+            x: { ticks: { font: { family: 'Cairo' }, color: '#64748b' }, grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    function renderSectionsChart() {
+      const ctx = document.getElementById('chartSections');
+      if (!ctx) return;
+      const labels = state.sections.map(s => s.name);
+      const data = state.sections.map(s => getSectionItems(s.id).length);
+      const colors = state.sections.map(s => s.color || '#3b82f6');
+      const isMobile = window.innerWidth <= 768;
+      new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels.length ? labels : ['لا توجد أقسام'],
+          datasets: [{ data: data.length ? data : [1], backgroundColor: colors.length ? colors : ['#e2e8f0'], borderWidth: 2, borderColor: '#fff' }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { font: { family: 'Cairo', size: isMobile ? 10 : 12 }, color: '#1e293b', padding: 12 } } }
+        }
+      });
+    }
+
+    // ==================== صفحة القسم ====================
+    function renderSectionPage(content, actions, section) {
+      actions.innerHTML = `
+        <button class="btn btn-success btn-sm" onclick="openReceiptModal('${section.id}')">📥 استلام</button>
+        <button class="btn btn-danger btn-sm" onclick="openIssueModal('${section.id}')">📤 صرف</button>
+        <button class="btn btn-primary btn-sm" onclick="openAddItemModal('${section.id}')">➕ صنف</button>
+      `;
+
+      const items = getSectionItems(section.id);
+      const lowCount = items.filter(i => { const bal = calculateBalance(i.id).current; return bal > 0 && bal <= (i.minQty || 0); }).length;
+      const outCount = items.filter(i => calculateBalance(i.id).current <= 0).length;
+
+      let html = '';
+
+      if (lowCount > 0 || outCount > 0) {
+        html += `<div class="alert alert-warning fade-in">
+          <span class="alert-icon">⚠️</span>
+          <div>
+            ${outCount > 0 ? `<strong>${outCount}</strong> صنف نفد. ` : ''}
+            ${lowCount > 0 ? `<strong>${lowCount}</strong> صنف منخفض. ` : ''}
+            يرجى مراجعة المخزون.
+          </div>
+        </div>`;
+      }
+
+      html += `
+        <div class="cards-grid" style="margin-bottom:20px;">
+          ${statCard('📦', 'عدد الأصناف', items.length, section.id === 'plumbing' ? 'plumbing' : section.id === 'electrical' ? 'electrical' : 'posttension')}
+          ${statCard('📊', 'إجمالي الكميات', items.reduce((s, i) => s + calculateBalance(i.id).current, 0).toLocaleString(), 'info')}
+          ${statCard('⚠️', 'أصناف منخفضة', lowCount, 'warning')}
+          ${statCard('🔴', 'أصناف نفدت', outCount, 'danger')}
+        </div>
+      `;
+
+      html += `
+        <div class="table-container">
+          <div class="table-header">
+            <h3>${section.icon || '📂'} أصناف ${section.name}</h3>
+            <div class="search-bar">
+              <span class="search-icon">🔍</span>
+              <input type="text" placeholder="بحث في الأصناف..." oninput="filterSectionItems('${section.id}', this.value)">
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>الكود</th><th>اسم الصنف</th><th>التصنيف</th><th>الوحدة</th>
+                  <th>افتتاحي</th><th>مستلم</th><th>مصروف</th><th>الرصيد</th>
+                  <th>الحد الأدنى</th><th>الحالة</th><th>آخر حركة</th><th>إجراءات</th>
+                </tr>
+              </thead>
+              <tbody id="sectionItemsBody-${section.id}">
+                ${renderItemsRows(items)}
+              </tbody>
+            </table>
+          </div>
+          <div class="mobile-cards" id="sectionItemsMobile-${section.id}">
+            ${renderItemsMobileCards(items)}
+          </div>
+        </div>
+      `;
+
+      content.innerHTML = html;
+    }
+
+    function renderItemsRows(items) {
+      if (items.length === 0) return `<tr><td colspan="12" class="table-empty"><span class="empty-icon">📭</span>لا توجد أصناف. اضغط "إضافة صنف" للبدء.</td></tr>`;
+      return items.map(item => {
+        const bal = calculateBalance(item.id);
+        const status = getItemStatus(item.id);
+        const lastMove = state.movements.filter(m => m.itemId === item.id).sort((a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00')))[0];
+        return `
+          <tr>
+            <td><span class="badge badge-primary">${item.code}</span></td>
+            <td><strong>${item.name}</strong></td>
+            <td>${item.subCategory || '-'}</td>
+            <td>${item.unit || '-'}</td>
+            <td>${item.openingQty || 0}</td>
+            <td style="color:var(--success);font-weight:600;">+${bal.received}</td>
+            <td style="color:var(--danger);font-weight:600;">-${bal.issued}</td>
+            <td><strong style="font-size:15px;">${bal.current}</strong></td>
+            <td>${item.minQty || 0}</td>
+            <td><span class="badge ${status.color}">${status.icon} ${status.label}</span></td>
+            <td>${lastMove ? formatDate(lastMove.date) : '-'}</td>
+            <td>
+              <button class="btn btn-xs btn-info" onclick="viewItemDetail('${item.id}')">👁️</button>
+              <button class="btn btn-xs btn-warning" onclick="editItem('${item.id}')">✏️</button>
+              <button class="btn btn-xs btn-danger" onclick="deleteItem('${item.id}')">🗑️</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderItemsMobileCards(items) {
+      if (items.length === 0) return `<div class="table-empty"><span class="empty-icon">📭</span>لا توجد أصناف. اضغط "إضافة صنف" للبدء.</div>`;
+      return items.map(item => {
+        const bal = calculateBalance(item.id);
+        const status = getItemStatus(item.id);
+        const lastMove = state.movements.filter(m => m.itemId === item.id).sort((a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00')))[0];
+        const statusBadge = `<span class="badge ${status.color}">${status.icon} ${status.label}</span>`;
+        const colorClass = status.status === 'ok' ? 'success' : status.status === 'low' ? 'warning' : 'danger';
+        const actions = `
+          <button class="btn btn-xs btn-info" onclick="viewItemDetail('${item.id}')">👁️ عرض</button>
+          <button class="btn btn-xs btn-warning" onclick="editItem('${item.id}')">✏️ تعديل</button>
+          <button class="btn btn-xs btn-danger" onclick="deleteItem('${item.id}')">🗑️ حذف</button>
+        `;
+        return createMobileCard(item.name, statusBadge, [
+          { label: 'الكود', value: `<span class="badge badge-primary">${item.code}</span>` },
+          { label: 'الرصيد', value: `<strong style="color:var(--primary);font-size:15px;">${bal.current}</strong> ${item.unit || ''}` },
+          { label: 'مستلم', value: `<span style="color:var(--success);">+${bal.received}</span>` },
+          { label: 'مصروف', value: `<span style="color:var(--danger);">-${bal.issued}</span>` },
+          { label: 'الحد الأدنى', value: item.minQty || 0 },
+          { label: 'آخر حركة', value: lastMove ? formatDate(lastMove.date) : '-' }
+        ], actions, colorClass);
+      }).join('');
+    }
+
+    function filterSectionItems(sectionId, query) {
+      const items = getSectionItems(sectionId).filter(item => {
+        const q = query.toLowerCase();
+        return item.name.toLowerCase().includes(q) || item.code.toLowerCase().includes(q) || (item.subCategory || '').toLowerCase().includes(q);
+      });
+      const tbody = document.getElementById(`sectionItemsBody-${sectionId}`);
+      const mobileDiv = document.getElementById(`sectionItemsMobile-${sectionId}`);
+      if (tbody) tbody.innerHTML = renderItemsRows(items);
+      if (mobileDiv) mobileDiv.innerHTML = renderItemsMobileCards(items);
+    }
+
+    // ==================== صفحة جميع الأصناف ====================
+    function renderAllItems(content, actions) {
+      actions.innerHTML = `<button class="btn btn-primary btn-sm" onclick="openAddItemModal()">➕ إضافة صنف</button>`;
+      let html = `
+        <div class="table-container">
+          <div class="table-header">
+            <h3>📦 جميع الأصناف (${state.items.length})</h3>
+            <div class="search-bar">
+              <span class="search-icon">🔍</span>
+              <input type="text" placeholder="بحث..." oninput="filterAllItems(this.value)" id="allItemsSearchInput">
+            </div>
+          </div>
+          <div class="filters-bar">
+            <select class="form-control" onchange="filterAllItems(document.getElementById('allItemsSearchInput').value, this.value)" id="allItemsSectionFilter">
+              <option value="">كل الأقسام</option>
+              ${state.sections.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>الكود</th><th>اسم الصنف</th><th>القسم</th><th>الوحدة</th><th>الرصيد الحالي</th><th>الحد الأدنى</th><th>الحالة</th><th>إجراءات</th></tr>
+              </thead>
+              <tbody id="allItemsBody">${renderAllItemsRows(state.items)}</tbody>
+            </table>
+          </div>
+          <div class="mobile-cards" id="allItemsMobile">${renderAllItemsMobileCards(state.items)}</div>
+        </div>
+      `;
+      content.innerHTML = html;
+    }
+
+    function renderAllItemsRows(items) {
+      if (items.length === 0) return `<tr><td colspan="8" class="table-empty"><span class="empty-icon">📭</span>لا توجد أصناف</td></tr>`;
+      return items.map(item => {
+        const bal = calculateBalance(item.id);
+        const status = getItemStatus(item.id);
+        const section = getSectionById(item.sectionId);
+        return `
+          <tr>
+            <td><span class="badge badge-primary">${item.code}</span></td>
+            <td><strong>${item.name}</strong></td>
+            <td>${section ? section.icon + ' ' + section.name : '-'}</td>
+            <td>${item.unit || '-'}</td>
+            <td><strong>${bal.current}</strong></td>
+            <td>${item.minQty || 0}</td>
+            <td><span class="badge ${status.color}">${status.icon} ${status.label}</span></td>
+            <td>
+              <button class="btn btn-xs btn-info" onclick="viewItemDetail('${item.id}')">👁️</button>
+              <button class="btn btn-xs btn-warning" onclick="editItem('${item.id}')">✏️</button>
+              <button class="btn btn-xs btn-danger" onclick="deleteItem('${item.id}')">🗑️</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderAllItemsMobileCards(items) {
+      if (items.length === 0) return `<div class="table-empty"><span class="empty-icon">📭</span>لا توجد أصناف</div>`;
+      return items.map(item => {
+        const bal = calculateBalance(item.id);
+        const status = getItemStatus(item.id);
+        const section = getSectionById(item.sectionId);
+        const statusBadge = `<span class="badge ${status.color}">${status.icon} ${status.label}</span>`;
+        const colorClass = status.status === 'ok' ? 'success' : status.status === 'low' ? 'warning' : 'danger';
+        const actions = `
+          <button class="btn btn-xs btn-info" onclick="viewItemDetail('${item.id}')">👁️ عرض</button>
+          <button class="btn btn-xs btn-warning" onclick="editItem('${item.id}')">✏️ تعديل</button>
+          <button class="btn btn-xs btn-danger" onclick="deleteItem('${item.id}')">🗑️ حذف</button>
+        `;
+        return createMobileCard(item.name, statusBadge, [
+          { label: 'الكود', value: `<span class="badge badge-primary">${item.code}</span>` },
+          { label: 'القسم', value: section ? section.icon + ' ' + section.name : '-' },
+          { label: 'الرصيد', value: `<strong style="color:var(--primary);font-size:15px;">${bal.current}</strong> ${item.unit || ''}` },
+          { label: 'الحد الأدنى', value: item.minQty || 0 }
+        ], actions, colorClass);
+      }).join('');
+    }
+
+    function filterAllItems(query, sectionId) {
+      let items = state.items;
+      if (sectionId) items = items.filter(i => i.sectionId === sectionId);
+      if (query) {
+        const q = query.toLowerCase();
+        items = items.filter(item => item.name.toLowerCase().includes(q) || item.code.toLowerCase().includes(q) || (item.subCategory || '').toLowerCase().includes(q));
+      }
+      document.getElementById('allItemsBody').innerHTML = renderAllItemsRows(items);
+      document.getElementById('allItemsMobile').innerHTML = renderAllItemsMobileCards(items);
+    }
+
+    // ==================== صفحة الحركات ====================
+    function renderMovementsPage(content, actions) {
+      actions.innerHTML = `
+        <button class="btn btn-success btn-sm" onclick="openReceiptModal()">📥 استلام</button>
+        <button class="btn btn-danger btn-sm" onclick="openIssueModal()">📤 صرف</button>
+      `;
+      const sortedMovements = [...state.movements].sort((a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00')));
+      let html = `
+        <div class="table-container">
+          <div class="table-header"><h3>🔄 سجل حركة المخزن (${state.movements.length})</h3></div>
+          <div class="filters-bar">
+            <div class="search-bar">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="movSearch" placeholder="بحث..." oninput="filterMovements()" />
+            </div>
+            <select class="form-control" id="movTypeFilter" onchange="filterMovements()">
+              <option value="">كل الأنواع</option>
+              <option value="receipt">استلام</option>
+              <option value="issue">صرف</option>
+            </select>
+            <select class="form-control" id="movSectionFilter" onchange="filterMovements()">
+              <option value="">كل الأقسام</option>
+              ${state.sections.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+            </select>
+            <input type="date" class="form-control" id="movDateFrom" onchange="filterMovements()" title="من تاريخ" />
+            <input type="date" class="form-control" id="movDateTo" onchange="filterMovements()" title="إلى تاريخ" />
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>رقم الإذن</th><th>التاريخ</th><th>الوقت</th><th>النوع</th><th>الصنف</th><th>الكمية</th><th>الرصيد قبل</th><th>الرصيد بعد</th><th>الشخص</th><th>المورد/السبب</th><th>إجراءات</th></tr>
+              </thead>
+              <tbody id="movementsBody">${renderMovementsRows(sortedMovements)}</tbody>
+            </table>
+          </div>
+          <div class="mobile-cards" id="movementsMobile">${renderMovementsMobileCards(sortedMovements)}</div>
+        </div>
+      `;
+      content.innerHTML = html;
+    }
+
+    function renderMovementsRows(movements) {
+      if (movements.length === 0) return `<tr><td colspan="11" class="table-empty"><span class="empty-icon">📭</span>لا توجد حركات</td></tr>`;
+      return movements.map(m => {
+        const item = getItemById(m.itemId);
+        const typeBadge = m.type === 'receipt' ? '<span class="badge badge-success">📥 استلام</span>' : '<span class="badge badge-danger">📤 صرف</span>';
+        return `
+          <tr>
+            <td><span class="badge badge-primary">${m.id}</span></td>
+            <td>${formatDate(m.date)}</td>
+            <td>${m.time || '-'}</td>
+            <td>${typeBadge}</td>
+            <td>${item ? item.name : 'غير معروف'}</td>
+            <td><strong>${m.qty}</strong> ${m.unit || ''}</td>
+            <td>${m.balanceBefore || 0}</td>
+            <td><strong>${m.balanceAfter || 0}</strong></td>
+            <td>${m.person || '-'}</td>
+            <td>${m.type === 'receipt' ? (m.supplier || '-') : (m.reason || '-')}</td>
+            <td>
+              <button class="btn btn-xs btn-warning" onclick="editMovement('${m.id}')">✏️</button>
+              <button class="btn btn-xs btn-danger" onclick="deleteMovement('${m.id}')">🗑️</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderMovementsMobileCards(movements) {
+      if (movements.length === 0) return `<div class="table-empty"><span class="empty-icon">📭</span>لا توجد حركات</div>`;
+      return movements.map(m => {
+        const item = getItemById(m.itemId);
+        const typeBadge = m.type === 'receipt' ? '<span class="badge badge-success">📥 استلام</span>' : '<span class="badge badge-danger">📤 صرف</span>';
+        const actions = `
+          <button class="btn btn-xs btn-warning" onclick="editMovement('${m.id}')">✏️ تعديل</button>
+          <button class="btn btn-xs btn-danger" onclick="deleteMovement('${m.id}')">🗑️ حذف</button>
+        `;
+        return createMobileCard(item ? item.name : 'غير معروف', typeBadge, [
+          { label: 'رقم الإذن', value: `<span class="badge badge-primary">${m.id}</span>` },
+          { label: 'التاريخ', value: formatDate(m.date) + ' - ' + (m.time || '') },
+          { label: 'الكمية', value: `<strong>${m.qty}</strong> ${m.unit || ''}` },
+          { label: 'الرصيد قبل', value: m.balanceBefore || 0 },
+          { label: 'الرصيد بعد', value: `<strong>${m.balanceAfter || 0}</strong>` },
+          { label: 'الشخص', value: m.person || '-' },
+          { label: m.type === 'receipt' ? 'المورد' : 'السبب', value: m.type === 'receipt' ? (m.supplier || '-') : (m.reason || '-') }
+        ], actions, m.type === 'receipt' ? 'success' : 'danger');
+      }).join('');
+    }
+
+    function filterMovements() {
+      const search = (document.getElementById('movSearch')?.value || '').toLowerCase();
+      const type = document.getElementById('movTypeFilter')?.value || '';
+      const section = document.getElementById('movSectionFilter')?.value || '';
+      const dateFrom = document.getElementById('movDateFrom')?.value || '';
+      const dateTo = document.getElementById('movDateTo')?.value || '';
+      let filtered = [...state.movements];
+      if (type) filtered = filtered.filter(m => m.type === type);
+      if (section) filtered = filtered.filter(m => { const item = getItemById(m.itemId); return item && item.sectionId === section; });
+      if (dateFrom) filtered = filtered.filter(m => m.date >= dateFrom);
+      if (dateTo) filtered = filtered.filter(m => m.date <= dateTo);
+      if (search) filtered = filtered.filter(m => {
+        const item = getItemById(m.itemId);
+        return m.id.toLowerCase().includes(search) || (item && item.name.toLowerCase().includes(search)) || (m.person || '').toLowerCase().includes(search) || (m.supplier || '').toLowerCase().includes(search) || (m.reason || '').toLowerCase().includes(search) || (m.notes || '').toLowerCase().includes(search);
+      });
+      filtered.sort((a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00')));
+      document.getElementById('movementsBody').innerHTML = renderMovementsRows(filtered);
+      document.getElementById('movementsMobile').innerHTML = renderMovementsMobileCards(filtered);
+    }
+
+    // ==================== تفاصيل الصنف ====================
+    function viewItemDetail(itemId) {
+      const item = getItemById(itemId);
+      if (!item) return;
+      const section = getSectionById(item.sectionId);
+      const bal = calculateBalance(itemId);
+      const status = getItemStatus(itemId);
+      const movements = state.movements.filter(m => m.itemId === itemId).sort((a, b) => new Date(a.date + 'T' + (a.time || '00:00')) - new Date(b.date + 'T' + (b.time || '00:00')));
+      let html = `
+        <div class="item-detail-header">
+          <div class="detail-card"><div class="detail-value">${bal.current}</div><div class="detail-label">الرصيد الحالي</div></div>
+          <div class="detail-card"><div class="detail-value" style="color:var(--success);">${bal.received}</div><div class="detail-label">إجمالي المستلم</div></div>
+          <div class="detail-card"><div class="detail-value" style="color:var(--danger);">${bal.issued}</div><div class="detail-label">إجمالي المصروف</div></div>
+          <div class="detail-card"><div class="detail-value">${item.openingQty || 0}</div><div class="detail-label">الرصيد الافتتاحي</div></div>
+          <div class="detail-card"><div class="detail-value">${item.minQty || 0}</div><div class="detail-label">الحد الأدنى</div></div>
+        </div>
+        <div class="alert alert-info">
+          <span class="alert-icon">${status.icon}</span>
+          <div>
+            <strong>${item.name}</strong> (${item.code}) - ${section ? section.name : ''}<br>
+            الوحدة: ${item.unit || '-'} | الموقع: ${item.location || '-'} | الحالة: <span class="badge ${status.color}">${status.label}</span>
+          </div>
+        </div>
+        <div class="table-container">
+          <div class="table-header"><h3>📋 سجل حركة الصنف</h3></div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>التاريخ</th><th>الوقت</th><th>النوع</th><th>الكمية</th><th>الرصيد قبل</th><th>الرصيد بعد</th><th>الشخص</th><th>المورد/السبب</th><th>ملاحظات</th></tr>
+              </thead>
+              <tbody>
+                ${movements.length === 0 ? '<tr><td colspan="9" class="table-empty">لا توجد حركات</td></tr>' :
+                  movements.map(m => `
+                    <tr>
+                      <td>${formatDate(m.date)}</td>
+                      <td>${m.time || '-'}</td>
+                      <td>${m.type === 'receipt' ? '<span class="badge badge-success">📥 استلام</span>' : '<span class="badge badge-danger">📤 صرف</span>'}</td>
+                      <td><strong>${m.qty}</strong></td>
+                      <td>${m.balanceBefore || 0}</td>
+                      <td><strong>${m.balanceAfter || 0}</strong></td>
+                      <td>${m.person || '-'}</td>
+                      <td>${m.type === 'receipt' ? (m.supplier || '-') : (m.reason || '-')}</td>
+                      <td>${m.notes || '-'}</td>
+                    </tr>
+                  `).join('')
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="mobile-cards">
+            ${movements.length === 0 ? '<div class="table-empty">لا توجد حركات</div>' :
+              movements.map(m => {
+                const typeBadge = m.type === 'receipt' ? '<span class="badge badge-success">📥 استلام</span>' : '<span class="badge badge-danger">📤 صرف</span>';
+                return createMobileCard(formatDate(m.date) + ' - ' + (m.time || ''), typeBadge, [
+                  { label: 'الكمية', value: `<strong>${m.qty}</strong> ${m.unit || ''}` },
+                  { label: 'الرصيد قبل', value: m.balanceBefore || 0 },
+                  { label: 'الرصيد بعد', value: `<strong>${m.balanceAfter || 0}</strong>` },
+                  { label: 'الشخص', value: m.person || '-' },
+                  { label: m.type === 'receipt' ? 'المورد' : 'السبب', value: m.type === 'receipt' ? (m.supplier || '-') : (m.reason || '-') }
+                ], '', m.type === 'receipt' ? 'success' : 'danger');
+              }).join('')
+            }
+          </div>
+        </div>
+      `;
+      openModal(`📦 تفاصيل الصنف: ${item.name}`, html, `
+        <button class="btn btn-outline" onclick="closeModal()">إغلاق</button>
+        <button class="btn btn-warning" onclick="closeModal(); editItem('${item.id}')">✏️ تعديل الصنف</button>
+      `);
+    }
+
+    // ==================== إضافة/تعديل صنف ====================
+    function openAddItemModal(sectionId = '') {
+      if (state.sections.length === 0) {
+        showToast('يجب إنشاء قسم أولًا', 'warning');
+        return;
+      }
+      const sectionOptions = state.sections.map(s => `<option value="${s.id}" ${s.id === sectionId ? 'selected' : ''}>${s.icon} ${s.name}</option>`).join('');
+      const unitOptions = UNITS.map(u => `<option value="${u}">${u}</option>`).join('');
+      const html = `
+        <div class="form-group">
+          <label>القسم <span class="required">*</span></label>
+          <select class="form-control" id="itemSection">${sectionOptions}</select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>كود الصنف <span class="required">*</span></label>
+            <input type="text" class="form-control" id="itemCode" placeholder="مثال: PL-PVC-001" />
+          </div>
+          <div class="form-group">
+            <label>اسم الصنف <span class="required">*</span></label>
+            <input type="text" class="form-control" id="itemName" placeholder="مثال: ماسورة PVC 4 بوصة" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>التصنيف الفرعي</label>
+            <input type="text" class="form-control" id="itemSubCategory" placeholder="مثال: مواسير PVC" />
+          </div>
+          <div class="form-group">
+            <label>الوحدة <span class="required">*</span></label>
+            <select class="form-control" id="itemUnit">
+              ${unitOptions}
+              <option value="__custom__">وحدة مخصصة...</option>
+            </select>
+            <input type="text" class="form-control mt-1 hidden" id="itemCustomUnit" placeholder="اكتب الوحدة" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>الكمية الافتتاحية</label>
+            <input type="number" class="form-control" id="itemOpeningQty" value="0" min="0" step="any" inputmode="decimal" />
+          </div>
+          <div class="form-group">
+            <label>الحد الأدنى للمخزون</label>
+            <input type="number" class="form-control" id="itemMinQty" value="0" min="0" step="any" inputmode="decimal" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>المورد</label>
+            <input type="text" class="form-control" id="itemSupplier" placeholder="اسم المورد" />
+          </div>
+          <div class="form-group">
+            <label>الموقع داخل المخزن</label>
+            <input type="text" class="form-control" id="itemLocation" placeholder="مثال: مخزن A - رف 1" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>ملاحظات</label>
+          <textarea class="form-control" id="itemNotes"></textarea>
+        </div>
+      `;
+      openModal('➕ إضافة صنف جديد', html, `
+        <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+        <button class="btn btn-primary" onclick="saveNewItem()">💾 حفظ الصنف</button>
+      `);
+      setTimeout(() => {
+        const unitSelect = document.getElementById('itemUnit');
+        const customUnit = document.getElementById('itemCustomUnit');
+        if (unitSelect && customUnit) {
+          unitSelect.addEventListener('change', () => customUnit.classList.toggle('hidden', unitSelect.value !== '__custom__'));
+        }
+      }, 50);
+    }
+
+    async function saveNewItem() {
+      const sectionId = document.getElementById('itemSection').value;
+      const code = document.getElementById('itemCode').value.trim();
+      const name = document.getElementById('itemName').value.trim();
+      const subCategory = document.getElementById('itemSubCategory').value.trim();
+      let unit = document.getElementById('itemUnit').value;
+      const customUnit = document.getElementById('itemCustomUnit').value.trim();
+      const openingQty = parseFloat(document.getElementById('itemOpeningQty').value) || 0;
+      const minQty = parseFloat(document.getElementById('itemMinQty').value) || 0;
+      const supplier = document.getElementById('itemSupplier').value.trim();
+      const location = document.getElementById('itemLocation').value.trim();
+      const notes = document.getElementById('itemNotes').value.trim();
+
+      if (unit === '__custom__') unit = customUnit || 'وحدة';
+      if (!name) { showToast('يجب إدخال اسم الصنف', 'error'); return; }
+      if (!code) { showToast('يجب إدخال كود الصنف', 'error'); return; }
+      if (openingQty < 0 || minQty < 0) { showToast('لا يمكن إدخال كميات سالبة', 'error'); return; }
+
+      const id = generateId('ITM');
+      const newItem = { id, code, name, sectionId, subCategory, unit, openingQty, minQty, supplier, location, notes, createdAt: new Date().toISOString() };
+
+      const result = await pushToFirebase('items', id, newItem);
+      if (result.success) {
+        await addAuditLog('إضافة صنف', `تم إضافة الصنف: ${name} (${code})`);
+        closeModal();
+        showToast(`تم إضافة الصنف "${name}" بنجاح`, 'success');
+      }
+    }
+
+    function editItem(itemId) {
+      const item = getItemById(itemId);
+      if (!item) return;
+      const sectionOptions = state.sections.map(s => `<option value="${s.id}" ${s.id === item.sectionId ? 'selected' : ''}>${s.icon} ${s.name}</option>`).join('');
+      const html = `
+        <div class="form-group">
+          <label>القسم <span class="required">*</span></label>
+          <select class="form-control" id="editItemSection">${sectionOptions}</select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>كود الصنف <span class="required">*</span></label>
+            <input type="text" class="form-control" id="editItemCode" value="${item.code}" />
+          </div>
+          <div class="form-group">
+            <label>اسم الصنف <span class="required">*</span></label>
+            <input type="text" class="form-control" id="editItemName" value="${item.name}" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>التصنيف الفرعي</label>
+            <input type="text" class="form-control" id="editItemSubCategory" value="${item.subCategory || ''}" />
+          </div>
+          <div class="form-group">
+            <label>الوحدة</label>
+            <input type="text" class="form-control" id="editItemUnit" value="${item.unit || ''}" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>الكمية الافتتاحية</label>
+            <input type="number" class="form-control" id="editItemOpeningQty" value="${item.openingQty || 0}" min="0" step="any" inputmode="decimal" />
+          </div>
+          <div class="form-group">
+            <label>الحد الأدنى</label>
+            <input type="number" class="form-control" id="editItemMinQty" value="${item.minQty || 0}" min="0" step="any" inputmode="decimal" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>المورد</label>
+            <input type="text" class="form-control" id="editItemSupplier" value="${item.supplier || ''}" />
+          </div>
+          <div class="form-group">
+            <label>الموقع داخل المخزن</label>
+            <input type="text" class="form-control" id="editItemLocation" value="${item.location || ''}" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>ملاحظات</label>
+          <textarea class="form-control" id="editItemNotes">${item.notes || ''}</textarea>
+        </div>
+      `;
+      openModal(`✏️ تعديل الصنف: ${item.name}`, html, `
+        <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+        <button class="btn btn-primary" onclick="saveEditItem('${item.id}')">💾 حفظ</button>
+      `);
+    }
+
+    async function saveEditItem(itemId) {
+      const item = getItemById(itemId);
+      if (!item) return;
+      const name = document.getElementById('editItemName').value.trim();
+      const code = document.getElementById('editItemCode').value.trim();
+      const openingQty = parseFloat(document.getElementById('editItemOpeningQty').value) || 0;
+      const minQty = parseFloat(document.getElementById('editItemMinQty').value) || 0;
+      if (!name) { showToast('يجب إدخال اسم الصنف', 'error'); return; }
+      if (!code) { showToast('يجب إدخال كود الصنف', 'error'); return; }
+
+      const updates = {
+        name, code,
+        sectionId: document.getElementById('editItemSection').value,
+        subCategory: document.getElementById('editItemSubCategory').value.trim(),
+        unit: document.getElementById('editItemUnit').value.trim(),
+        openingQty, minQty,
+        supplier: document.getElementById('editItemSupplier').value.trim(),
+        location: document.getElementById('editItemLocation').value.trim(),
+        notes: document.getElementById('editItemNotes').value.trim(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const result = await updateInFirebase('items', itemId, updates);
+      if (result.success) {
+        await addAuditLog('تعديل صنف', `تم تعديل الصنف: ${name} (${code})`);
+        closeModal();
+        showToast('تم حفظ التعديلات بنجاح', 'success');
+      }
+    }
+
+    function deleteItem(itemId) {
+      const item = getItemById(itemId);
+      if (!item) return;
+      const movementsCount = state.movements.filter(m => m.itemId === itemId).length;
+      const html = `
+        <div class="alert alert-danger">
+          <span class="alert-icon">⚠️</span>
+          <div>
+            <strong>هل أنت متأكد؟</strong><br>
+            سيتم حذف الصنف: <strong>${item.name}</strong> (${item.code})<br>
+            ${movementsCount > 0 ? `يوجد <strong>${movementsCount}</strong> حركة مرتبطة وسيتم حذفها أيضًا.` : ''}
+            <br><br>لا يمكن التراجع.
+          </div>
+        </div>
+      `;
+      openModal('🗑️ تأكيد الحذف', html, `
+        <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+        <button class="btn btn-danger" onclick="confirmDeleteItem('${itemId}')">🗑️ نعم، احذف</button>
+      `);
+    }
+
+    async function confirmDeleteItem(itemId) {
+      const item = getItemById(itemId);
+      if (!item) return;
+      // حذف الحركات المرتبطة
+      const relatedMovements = state.movements.filter(m => m.itemId === itemId);
+      for (const m of relatedMovements) {
+        await removeFromFirebase('movements', m.id);
+      }
+      await removeFromFirebase('items', itemId);
+      await addAuditLog('حذف صنف', `تم حذف الصنف: ${item.name} (${item.code})`);
+      closeModal();
+      showToast('تم حذف الصنف بنجاح', 'success');
+    }
+
+    // ==================== استلام بضاعة ====================
+    function openReceiptModal(sectionId = '') {
+      if (state.sections.length === 0) { showToast('يجب إنشاء قسم أولًا', 'warning'); return; }
+      const sectionOptions = state.sections.map(s => `<option value="${s.id}" ${s.id === sectionId ? 'selected' : ''}>${s.icon} ${s.name}</option>`).join('');
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const timeStr = now.toTimeString().slice(0, 5);
+      const html = `
+        <div class="form-row">
+          <div class="form-group">
+            <label>رقم إذن الاستلام</label>
+            <input type="text" class="form-control" id="recReceiptNo" value="${generateMovementId('receipt')}" readonly style="background:#f1f5f9;" />
+          </div>
+          <div class="form-group">
+            <label>التاريخ</label>
+            <input type="date" class="form-control" id="recDate" value="${dateStr}" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>القسم <span class="required">*</span></label>
+            <select class="form-control" id="recSection" onchange="updateReceiptItems()">${sectionOptions}</select>
+          </div>
+          <div class="form-group">
+            <label>الصنف <span class="required">*</span></label>
+            <select class="form-control" id="recItem" onchange="updateReceiptInfo()"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>الكمية <span class="required">*</span></label>
+            <input type="number" class="form-control" id="recQty" value="0" min="0.01" step="any" inputmode="decimal" />
+            <div class="form-hint" id="recUnitHint"></div>
+          </div>
+          <div class="form-group">
+            <label>المورد</label>
+            <input type="text" class="form-control" id="recSupplier" placeholder="اسم المورد" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>رقم الفاتورة</label>
+            <input type="text" class="form-control" id="recInvoiceNo" placeholder="INV-001" />
+          </div>
+          <div class="form-group">
+            <label>اسم المستلم</label>
+            <input type="text" class="form-control" id="recPerson" placeholder="اسم الشخص" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>الموقع داخل المخزن</label>
+            <input type="text" class="form-control" id="recLocation" placeholder="مثال: مخزن A - رف 1" />
+          </div>
+          <div class="form-group">
+            <label>الوقت</label>
+            <input type="time" class="form-control" id="recTime" value="${timeStr}" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>ملاحظات</label>
+          <textarea class="form-control" id="recNotes"></textarea>
+        </div>
+      `;
+      openModal('📥 استلام بضاعة', html, `
+        <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+        <button class="btn btn-success" onclick="saveReceipt()">💾 حفظ الاستلام</button>
+      `);
+      setTimeout(() => { updateReceiptItems(); }, 50);
+    }
+
+    function updateReceiptItems() {
+      const sectionId = document.getElementById('recSection').value;
+      const items = getSectionItems(sectionId);
+      const select = document.getElementById('recItem');
+      select.innerHTML = items.length
+        ? items.map(i => `<option value="${i.id}">${i.name} (${i.code})</option>`).join('')
+        : '<option value="">لا توجد أصناف - أضف صنف أولًا</option>';
+      updateReceiptInfo();
+    }
+
+    function updateReceiptInfo() {
+      const itemId = document.getElementById('recItem').value;
+      const item = getItemById(itemId);
+      const hint = document.getElementById('recUnitHint');
+      if (item && hint) {
+        const bal = calculateBalance(itemId).current;
+        hint.innerHTML = `الرصيد الحالي: <strong>${bal}</strong> ${item.unit}`;
+      }
+    }
+
+    async function saveReceipt() {
+      const receiptNo = document.getElementById('recReceiptNo').value;
+      const date = document.getElementById('recDate').value;
+      const time = document.getElementById('recTime').value;
+      const itemId = document.getElementById('recItem').value;
+      const qty = parseFloat(document.getElementById('recQty').value);
+      const supplier = document.getElementById('recSupplier').value.trim();
+      const invoiceNo = document.getElementById('recInvoiceNo').value.trim();
+      const person = document.getElementById('recPerson').value.trim();
+      const location = document.getElementById('recLocation').value.trim();
+      const notes = document.getElementById('recNotes').value.trim();
+
+      if (!itemId) { showToast('يجب اختيار الصنف', 'error'); return; }
+      if (!qty || qty <= 0) { showToast('يجب إدخال كمية صحيحة', 'error'); return; }
+      if (!date) { showToast('يجب إدخال التاريخ', 'error'); return; }
+
+      const item = getItemById(itemId);
+      const balBefore = calculateBalance(itemId).current;
+      const balAfter = balBefore + qty;
+
+      const movement = {
+        id: receiptNo, type: 'receipt', date, time: time || '00:00',
+        itemId, qty, unit: item.unit,
+        person: person || 'غير محدد',
+        supplier: supplier || item.supplier || '',
+        receiptNo, invoiceNo, notes, location,
+        balanceBefore: balBefore, balanceAfter: balAfter,
+        createdAt: new Date().toISOString()
+      };
+
+      const result = await pushToFirebase('movements', receiptNo, movement);
+      if (result.success) {
+        await addAuditLog('استلام بضاعة', `تم استلام ${qty} ${item.unit} من ${item.name} - إذن: ${receiptNo}`);
+        closeModal();
+        showToast(`تم استلام ${qty} ${item.unit} من "${item.name}" بنجاح`, 'success');
+      }
+    }
+
+    // ==================== صرف بضاعة ====================
+    function openIssueModal(sectionId = '') {
+      if (state.sections.length === 0) { showToast('يجب إنشاء قسم أولًا', 'warning'); return; }
+      const sectionOptions = state.sections.map(s => `<option value="${s.id}" ${s.id === sectionId ? 'selected' : ''}>${s.icon} ${s.name}</option>`).join('');
+      const peopleOptions = state.people.map(p => `<option value="${p.name}">${p.name} - ${p.job || ''}</option>`).join('');
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const timeStr = now.toTimeString().slice(0, 5);
+      const html = `
+        <div class="form-row">
+          <div class="form-group">
+            <label>رقم إذن الصرف</label>
+            <input type="text" class="form-control" id="issIssueNo" value="${generateMovementId('issue')}" readonly style="background:#f1f5f9;" />
+          </div>
+          <div class="form-group">
+            <label>التاريخ</label>
+            <input type="date" class="form-control" id="issDate" value="${dateStr}" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>القسم <span class="required">*</span></label>
+            <select class="form-control" id="issSection" onchange="updateIssueItems()">${sectionOptions}</select>
+          </div>
+          <div class="form-group">
+            <label>الصنف <span class="required">*</span></label>
+            <select class="form-control" id="issItem" onchange="updateIssueInfo()"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>الكمية <span class="required">*</span></label>
+            <input type="number" class="form-control" id="issQty" value="0" min="0.01" step="any" inputmode="decimal" />
+            <div class="form-hint" id="issUnitHint"></div>
+          </div>
+          <div class="form-group">
+            <label>الوحدة</label>
+            <input type="text" class="form-control" id="issUnit" readonly style="background:#f1f5f9;" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>اسم الشخص الذي استلم <span class="required">*</span></label>
+            <input type="text" class="form-control" id="issPerson" list="peopleList" placeholder="اكتب أو اختر..." />
+            <datalist id="peopleList">${peopleOptions}</datalist>
+          </div>
+          <div class="form-group">
+            <label>الجهة / القسم / المنطقة</label>
+            <input type="text" class="form-control" id="issDestination" placeholder="مثال: الدور الثالث" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>سبب الصرف</label>
+            <input type="text" class="form-control" id="issReason" placeholder="مثال: أعمال السباكة" />
+          </div>
+          <div class="form-group">
+            <label>اسم أمين المخزن</label>
+            <input type="text" class="form-control" id="issStorekeeper" placeholder="اسم أمين المخزن" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>الوقت</label>
+            <input type="time" class="form-control" id="issTime" value="${timeStr}" />
+          </div>
+          <div class="form-group">
+            <label>ملاحظات</label>
+            <input type="text" class="form-control" id="issNotes" placeholder="ملاحظات" />
+          </div>
+        </div>
+      `;
+      openModal('📤 صرف بضاعة', html, `
+        <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+        <button class="btn btn-danger" onclick="saveIssue()">💾 حفظ الصرف</button>
+      `);
+      setTimeout(() => { updateIssueItems(); }, 50);
+    }
+
+    function updateIssueItems() {
+      const sectionId = document.getElementById('issSection').value;
+      const items = getSectionItems(sectionId);
+      const select = document.getElementById('issItem');
+      select.innerHTML = items.length
+        ? items.map(i => `<option value="${i.id}">${i.name} (${i.code})</option>`).join('')
+        : '<option value="">لا توجد أصناف - أضف صنف أولًا</option>';
+      updateIssueInfo();
+    }
+
+    function updateIssueInfo() {
+      const itemId = document.getElementById('issItem').value;
+      const item = getItemById(itemId);
+      const hint = document.getElementById('issUnitHint');
+      const unitField = document.getElementById('issUnit');
+      if (item) {
+        const bal = calculateBalance(itemId).current;
+        if (hint) hint.innerHTML = `الرصيد الحالي: <strong>${bal}</strong> ${item.unit}`;
+        if (unitField) unitField.value = item.unit;
+      }
+    }
+
+    async function saveIssue() {
+      const issueNo = document.getElementById('issIssueNo').value;
+      const date = document.getElementById('issDate').value;
+      const time = document.getElementById('issTime').value;
+      const itemId = document.getElementById('issItem').value;
+      const qty = parseFloat(document.getElementById('issQty').value);
+      const person = document.getElementById('issPerson').value.trim();
+      const destination = document.getElementById('issDestination').value.trim();
+      const reason = document.getElementById('issReason').value.trim();
+      const storekeeper = document.getElementById('issStorekeeper').value.trim();
+      const notes = document.getElementById('issNotes').value.trim();
+
+      if (!itemId) { showToast('يجب اختيار الصنف', 'error'); return; }
+      if (!qty || qty <= 0) { showToast('يجب إدخال كمية صحيحة', 'error'); return; }
+      if (!date) { showToast('يجب إدخال التاريخ', 'error'); return; }
+      if (!person) { showToast('يجب إدخال اسم الشخص', 'error'); return; }
+
+      const item = getItemById(itemId);
+      const balBefore = calculateBalance(itemId).current;
+
+      if (qty > balBefore) {
+        showToast(`لا يمكن صرف ${qty}، الرصيد الحالي ${balBefore} فقط.`, 'error', 5000);
+        return;
+      }
+
+      const balAfter = balBefore - qty;
+      const movement = {
+        id: issueNo, type: 'issue', date, time: time || '00:00',
+        itemId, qty, unit: item.unit, person, destination,
+        reason: reason || 'غير محدد',
+        storekeeper: storekeeper || 'غير محدد',
+        notes, balanceBefore: balBefore, balanceAfter: balAfter,
+        createdAt: new Date().toISOString()
+      };
+
+      const result = await pushToFirebase('movements', issueNo, movement);
+      if (result.success) {
+        await addAuditLog('صرف بضاعة', `تم صرف ${qty} ${item.unit} من ${item.name} إلى ${person} - إذن: ${issueNo}`);
+        closeModal();
+        showToast(`تم صرف ${qty} ${item.unit} من "${item.name}" بنجاح`, 'success');
+      }
+    }
+
+    // ==================== تعديل/حذف حركة ====================
+    function editMovement(movementId) {
+      const movement = state.movements.find(m => m.id === movementId);
+      if (!movement) return;
+      const item = getItemById(movement.itemId);
+      if (!item) return;
+      const html = `
+        <div class="alert alert-info">
+          <span class="alert-icon">✏️</span>
+          <div>تعديل الحركة: <strong>${movement.id}</strong> - ${item.name}</div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>التاريخ</label>
+            <input type="date" class="form-control" id="editMovDate" value="${movement.date}" />
+          </div>
+          <div class="form-group">
+            <label>الوقت</label>
+            <input type="time" class="form-control" id="editMovTime" value="${movement.time || '00:00'}" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>الكمية</label>
+            <input type="number" class="form-control" id="editMovQty" value="${movement.qty}" min="0.01" step="any" inputmode="decimal" />
+          </div>
+          <div class="form-group">
+            <label>الشخص</label>
+            <input type="text" class="form-control" id="editMovPerson" value="${movement.person || ''}" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>${movement.type === 'receipt' ? 'المورد' : 'السبب'}</label>
+            <input type="text" class="form-control" id="editMovExtra" value="${movement.type === 'receipt' ? (movement.supplier || '') : (movement.reason || '')}" />
+          </div>
+          <div class="form-group">
+            <label>ملاحظات</label>
+            <input type="text" class="form-control" id="editMovNotes" value="${movement.notes || ''}" />
+          </div>
+        </div>
+      `;
+      openModal(`✏️ تعديل الحركة: ${movement.id}`, html, `
+        <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+        <button class="btn btn-primary" onclick="saveEditMovement('${movementId}')">💾 حفظ</button>
+      `);
+    }
+
+    async function saveEditMovement(movementId) {
+      const movement = state.movements.find(m => m.id === movementId);
+      if (!movement) return;
+      const qty = parseFloat(document.getElementById('editMovQty').value);
+      if (!qty || qty <= 0) { showToast('يجب إدخال كمية صحيحة', 'error'); return; }
+
+      const extra = document.getElementById('editMovExtra').value.trim();
+      const updates = {
+        date: document.getElementById('editMovDate').value,
+        time: document.getElementById('editMovTime').value,
+        qty,
+        person: document.getElementById('editMovPerson').value.trim(),
+        notes: document.getElementById('editMovNotes').value.trim(),
+        updatedAt: new Date().toISOString()
+      };
+      if (movement.type === 'receipt') updates.supplier = extra;
+      else updates.reason = extra;
+
+      const result = await updateInFirebase('movements', movementId, updates);
+      if (result.success) {
+        await recalculateAllBalances();
+        await addAuditLog('تعديل حركة', `تم تعديل الحركة: ${movement.id}`);
+        closeModal();
+        showToast('تم تعديل الحركة بنجاح', 'success');
+      }
+    }
+
+    function deleteMovement(movementId) {
+      const movement = state.movements.find(m => m.id === movementId);
+      if (!movement) return;
+      const item = getItemById(movement.itemId);
+      const html = `
+        <div class="alert alert-danger">
+          <span class="alert-icon">⚠️</span>
+          <div>
+            <strong>هل أنت متأكد؟</strong><br>
+            حذف هذه الحركة سيؤثر على الرصيد.<br>
+            <strong>${movement.id}</strong> - ${item ? item.name : 'غير معروف'}<br>
+            الكمية: ${movement.qty} ${movement.unit || ''}<br><br>
+            لا يمكن التراجع.
+          </div>
+        </div>
+      `;
+      openModal('🗑️ تأكيد حذف الحركة', html, `
+        <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+        <button class="btn btn-danger" onclick="confirmDeleteMovement('${movementId}')">🗑️ نعم، احذف</button>
+      `);
+    }
+
+    async function confirmDeleteMovement(movementId) {
+      await removeFromFirebase('movements', movementId);
+      await recalculateAllBalances();
+      await addAuditLog('حذف حركة', `تم حذف الحركة: ${movementId}`);
+      closeModal();
+      showToast('تم حذف الحركة بنجاح', 'success');
+    }
+
+    async function recalculateAllBalances() {
+      // إعادة ترتيب الحركات وحساب الأرصدة
+      const sortedMovements = [...state.movements].sort((a, b) => {
+        const dateA = new Date(a.date + 'T' + (a.time || '00:00'));
+        const dateB = new Date(b.date + 'T' + (b.time || '00:00'));
+        return dateA - dateB;
+      });
+
+      const itemBalances = {};
+      state.items.forEach(item => { itemBalances[item.id] = item.openingQty || 0; });
+
+      const updates = {};
+      sortedMovements.forEach(m => {
+        const currentBal = itemBalances[m.itemId] || 0;
+        const before = currentBal;
+        let after;
+        if (m.type === 'receipt') after = currentBal + (m.qty || 0);
+        else after = currentBal - (m.qty || 0);
+        itemBalances[m.itemId] = after;
+        if (m.balanceBefore !== before || m.balanceAfter !== after) {
+          updates[`${ROOT_PATH}/movements/${m.id}/balanceBefore`] = before;
+          updates[`${ROOT_PATH}/movements/${m.id}/balanceAfter`] = after;
+        }
+      });
+
+      if (Object.keys(updates).length > 0) {
+        try { await db.ref().update(updates); } catch (e) { console.error(e); }
+      }
+    }
+
+    // ==================== الأشخاص ====================
+    function renderPeoplePage(content, actions) {
+      actions.innerHTML = `<button class="btn btn-primary btn-sm" onclick="openAddPersonModal()">➕ إضافة شخص</button>`;
+      let html = `
+        <div class="table-container">
+          <div class="table-header"><h3>👥 قائمة الأشخاص (${state.people.length})</h3></div>
+          <div class="table-wrapper">
+            <table>
+              <thead><tr><th>الاسم</th><th>الوظيفة</th><th>القسم</th><th>رقم الهاتف</th><th>ملاحظات</th><th>إجراءات</th></tr></thead>
+              <tbody>
+                ${state.people.length === 0 ? '<tr><td colspan="6" class="table-empty"><span class="empty-icon">👥</span>لا يوجد أشخاص</td></tr>' :
+                  state.people.map(p => `
+                    <tr>
+                      <td><strong>${p.name}</strong></td>
+                      <td>${p.job || '-'}</td>
+                      <td>${p.section || '-'}</td>
+                      <td>${p.phone || '-'}</td>
+                      <td>${p.notes || '-'}</td>
+                      <td>
+                        <button class="btn btn-xs btn-warning" onclick="editPerson('${p.id}')">✏️</button>
+                        <button class="btn btn-xs btn-danger" onclick="deletePerson('${p.id}')">🗑️</button>
+                      </td>
+                    </tr>
+                  `).join('')
+                }
+              </tbody>
+            </table>
+          </div>
+          <div class="mobile-cards">
+            ${state.people.length === 0 ? '<div class="table-empty"><span class="empty-icon">👥</span>لا يوجد أشخاص</div>' :
+              state.people.map(p => {
+                const actions = `
+                  <button class="btn btn-xs btn-warning" onclick="editPerson('${p.id}')">✏️ تعديل</button>
+                  <button class="btn btn-xs btn-danger" onclick="deletePerson('${p.id}')">🗑️ حذف</button>
+                `;
+                return createMobileCard(p.name, '', [
+                  { label: 'الوظيفة', value: p.job || '-' },
+                  { label: 'القسم', value: p.section || '-' },
+                  { label: 'الهاتف', value: p.phone || '-' },
+                  { label: 'ملاحظات', value: p.notes || '-' }
+                ], actions, '');
+              }).join('')
+            }
+          </div>
+        </div>
+      `;
+      content.innerHTML = html;
+    }
+
+    function openAddPersonModal() {
+      const html = `
+        <div class="form-row">
+          <div class="form-group"><label>الاسم <span class="required">*</span></label><input type="text" class="form-control" id="personName" /></div>
+          <div class="form-group"><label>الوظيفة</label><input type="text" class="form-control" id="personJob" placeholder="مثال: فورمان سباكة" /></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>القسم</label><input type="text" class="form-control" id="personSection" placeholder="مثال: السباكة" /></div>
+          <div class="form-group"><label>رقم الهاتف</label><input type="tel" class="form-control" id="personPhone" inputmode="tel" /></div>
+        </div>
+        <div class="form-group"><label>ملاحظات</label><textarea class="form-control" id="personNotes"></textarea></div>
+      `;
+      openModal('➕ إضافة شخص جديد', html, `
+        <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+        <button class="btn btn-primary" onclick="saveNewPerson()">💾 حفظ</button>
+      `);
+    }
+
+    async function saveNewPerson() {
+      const name = document.getElementById('personName').value.trim();
+      if (!name) { showToast('يجب إدخال الاسم', 'error'); return; }
+      const id = generateId('P');
+      const person = {
+        id, name,
+        job: document.getElementById('personJob').value.trim(),
+        section: document.getElementById('personSection').value.trim(),
+        phone: document.getElementById('personPhone').value.trim(),
+        notes: document.getElementById('personNotes').value.trim(),
+        createdAt: new Date().toISOString()
+      };
+      const result = await pushToFirebase('people', id, person);
+      if (result.success) {
+        await addAuditLog('إضافة شخص', `تم إضافة: ${name}`);
+        closeModal();
+        showToast('تم إضافة الشخص بنجاح', 'success');
+      }
+    }
+
+    function editPerson(personId) {
+      const person = getPersonById(personId);
+      if (!person) return;
+      const html = `
+        <div class="form-row">
+          <div class="form-group"><label>الاسم <span class="required">*</span></label><input type="text" class="form-control" id="editPersonName" value="${person.name}" /></div>
+          <div class="form-group"><label>الوظيفة</label><input type="text" class="form-control" id="editPersonJob" value="${person.job || ''}" /></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>القسم</label><input type="text" class="form-control" id="editPersonSection" value="${person.section || ''}" /></div>
+          <div class="form-group"><label>رقم الهاتف</label><input type="tel" class="form-control" id="editPersonPhone" value="${person.phone || ''}" inputmode="tel" /></div>
+        </div>
+        <div class="form-group"><label>ملاحظات</label><textarea class="form-control" id="editPersonNotes">${person.notes || ''}</textarea></div>
+      `;
+      openModal('✏️ تعديل بيانات الشخص', html, `
+        <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+        <button class="btn btn-primary" onclick="saveEditPerson('${personId}')">💾 حفظ</button>
+      `);
+    }
+
+    async function saveEditPerson(personId) {
+      const name = document.getElementById('editPersonName').value.trim();
+      if (!name) { showToast('يجب إدخال الاسم', 'error'); return; }
+      const updates = {
+        name,
+        job: document.getElementById('editPersonJob').value.trim(),
+        section: document.getElementById('editPersonSection').value.trim(),
+        phone: document.getElementById('editPersonPhone').value.trim(),
+        notes: document.getElementById('editPersonNotes').value.trim()
+      };
+      const result = await updateInFirebase('people', personId, updates);
+      if (result.success) {
+        await addAuditLog('تعديل شخص', `تم تعديل: ${name}`);
+        closeModal();
+        showToast('تم حفظ التعديلات', 'success');
+      }
+    }
+
+    function deletePerson(personId) {
+      const person = getPersonById(personId);
+      if (!person) return;
+      openModal('🗑️ تأكيد الحذف', `
+        <div class="alert alert-danger">
+          <span class="alert-icon">⚠️</span>
+          <div>هل أنت متأكد من حذف <strong>${person.name}</strong>؟</div>
+        </div>
+      `, `
+        <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+        <button class="btn btn-danger" onclick="confirmDeletePerson('${personId}')">🗑️ نعم، احذف</button>
+      `);
+    }
+
+    async function confirmDeletePerson(personId) {
+      const person = getPersonById(personId);
+      await removeFromFirebase('people', personId);
+      await addAuditLog('حذف شخص', `تم حذف: ${person ? person.name : personId}`);
+      closeModal();
+      showToast('تم حذف الشخص', 'success');
+    }
+
+    // ==================== إضافة قسم ====================
+    function addNewSection() {
+      const html = `
+        <div class="form-group"><label>اسم البند / القسم <span class="required">*</span></label><input type="text" class="form-control" id="newSectionName" placeholder="مثال: محارة، خرسانة..." /></div>
+        <div class="form-group"><label>وصف البند</label><input type="text" class="form-control" id="newSectionDesc" /></div>
+        <div class="form-row">
+          <div class="form-group"><label>أيقونة</label><input type="text" class="form-control" id="newSectionIcon" value="📂" maxlength="4" /></div>
+          <div class="form-group"><label>لون القسم</label><input type="color" class="form-control" id="newSectionColor" value="#3b82f6" style="height:44px;padding:4px;cursor:pointer;" /></div>
+        </div>
+      `;
+      openModal('➕ إضافة بند جديد', html, `
+        <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+        <button class="btn btn-primary" onclick="saveNewSection()">💾 إنشاء البند</button>
+      `);
+    }
+
+    async function saveNewSection() {
+      const name = document.getElementById('newSectionName').value.trim();
+      if (!name) { showToast('يجب إدخال اسم البند', 'error'); return; }
+      const id = 'section_' + Date.now();
+      const section = {
+        id, name,
+        icon: document.getElementById('newSectionIcon').value.trim() || '📂',
+        color: document.getElementById('newSectionColor').value,
+        description: document.getElementById('newSectionDesc').value.trim(),
+        isDefault: false,
+        createdAt: new Date().toISOString()
+      };
+      const result = await pushToFirebase('sections', id, section);
+      if (result.success) {
+        await addAuditLog('إضافة قسم', `تم إنشاء البند: ${name}`);
+        closeModal();
+        showToast(`تم إنشاء بند "${name}" بنجاح`, 'success');
+        navigateTo(`section-${id}`);
+      }
+    }
+
+    function deleteSection(sectionId) {
+      const section = getSectionById(sectionId);
+      if (!section) return;
+      const itemsCount = getSectionItems(sectionId).length;
+      openModal('🗑️ تأكيد حذف القسم', `
+        <div class="alert alert-danger">
+          <span class="alert-icon">⚠️</span>
+          <div>
+            هل أنت متأكد من حذف قسم <strong>${section.name}</strong>؟<br>
+            ${itemsCount > 0 ? `يوجد <strong>${itemsCount}</strong> صنف داخل هذا القسم سيتم حذفهم جميعًا.` : ''}
+            <br><br>لا يمكن التراجع.
+          </div>
+        </div>
+      `, `
+        <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+        <button class="btn btn-danger" onclick="confirmDeleteSection('${sectionId}')">🗑️ نعم، احذف</button>
+      `);
+    }
+
+    async function confirmDeleteSection(sectionId) {
+      const section = getSectionById(sectionId);
+      const sectionItems = getSectionItems(sectionId);
+      for (const item of sectionItems) {
+        const relatedMovements = state.movements.filter(m => m.itemId === item.id);
+        for (const m of relatedMovements) await removeFromFirebase('movements', m.id);
+        await removeFromFirebase('items', item.id);
+      }
+      await removeFromFirebase('sections', sectionId);
+      await addAuditLog('حذف قسم', `تم حذف القسم: ${section ? section.name : sectionId}`);
+      closeModal();
+      showToast('تم حذف القسم بنجاح', 'success');
+      navigateTo('dashboard');
+    }
+
+    // ==================== التقارير ====================
+    function renderReportsPage(content, actions) {
+      let html = `
+        <div class="cards-grid">
+          <div class="card primary fade-in" style="cursor:pointer;" onclick="showReport('inventory')"><div class="card-header"><div class="card-icon primary">📦</div></div><div class="card-value" style="font-size:16px;">تقرير المخزون</div><div class="card-label">جميع الأصناف مع أرصدتها</div></div>
+          <div class="card success fade-in" style="cursor:pointer;" onclick="showReport('receipts')"><div class="card-header"><div class="card-icon success">📥</div></div><div class="card-value" style="font-size:16px;">تقرير الاستلامات</div><div class="card-label">جميع عمليات الاستلام</div></div>
+          <div class="card danger fade-in" style="cursor:pointer;" onclick="showReport('issues')"><div class="card-header"><div class="card-icon danger">📤</div></div><div class="card-value" style="font-size:16px;">تقرير الصرف</div><div class="card-label">جميع عمليات الصرف</div></div>
+          <div class="card warning fade-in" style="cursor:pointer;" onclick="showReport('lowstock')"><div class="card-header"><div class="card-icon warning">⚠️</div></div><div class="card-value" style="font-size:16px;">الأصناف الناقصة</div><div class="card-label">تحت الحد الأدنى</div></div>
+          <div class="card danger fade-in" style="cursor:pointer;" onclick="showReport('outofstock')"><div class="card-header"><div class="card-icon danger">🔴</div></div><div class="card-value" style="font-size:16px;">الأصناف المنتهية</div><div class="card-label">التي نفدت</div></div>
+          <div class="card info fade-in" style="cursor:pointer;" onclick="showReport('byperson')"><div class="card-header"><div class="card-icon info">👤</div></div><div class="card-value" style="font-size:16px;">حسب الشخص</div><div class="card-label">حركة كل شخص</div></div>
+          <div class="card plumbing fade-in" style="cursor:pointer;" onclick="showReport('bysection')"><div class="card-header"><div class="card-icon plumbing">📂</div></div><div class="card-value" style="font-size:16px;">حسب القسم</div><div class="card-label">حركة كل قسم</div></div>
+          <div class="card posttension fade-in" style="cursor:pointer;" onclick="showReport('period')"><div class="card-header"><div class="card-icon posttension">📅</div></div><div class="card-value" style="font-size:16px;">حسب الفترة</div><div class="card-label">فترة زمنية</div></div>
+        </div>
+        <div id="reportContent"></div>
+      `;
+      content.innerHTML = html;
+    }
+
+    function showReport(type) {
+      const container = document.getElementById('reportContent');
+      let html = '';
+      if (type === 'inventory') {
+        html = `<div class="table-container mt-3"><div class="table-header"><h3>📦 تقرير المخزون الحالي</h3><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-sm btn-outline" onclick="printReport()">🖨️ طباعة</button><button class="btn btn-sm btn-pdf" onclick="exportPDF('inventory')">📕 PDF</button><button class="btn btn-sm btn-success" onclick="exportCSV('inventory')">📄 CSV</button></div></div><div class="table-wrapper"><table id="reportTable-inventory"><thead><tr><th>الكود</th><th>الصنف</th><th>القسم</th><th>الوحدة</th><th>افتتاحي</th><th>مستلم</th><th>مصروف</th><th>الرصيد</th><th>الحد الأدنى</th><th>الحالة</th></tr></thead><tbody>${state.items.map(item => { const bal = calculateBalance(item.id); const status = getItemStatus(item.id); const section = getSectionById(item.sectionId); return `<tr><td>${item.code}</td><td>${item.name}</td><td>${section ? section.name : '-'}</td><td>${item.unit || '-'}</td><td>${item.openingQty || 0}</td><td>${bal.received}</td><td>${bal.issued}</td><td><strong>${bal.current}</strong></td><td>${item.minQty || 0}</td><td><span class="badge ${status.color}">${status.label}</span></td></tr>`; }).join('')}</tbody></table></div></div>`;
+      } else if (type === 'receipts') {
+        const receipts = state.movements.filter(m => m.type === 'receipt');
+        html = `<div class="table-container mt-3"><div class="table-header"><h3>📥 تقرير الاستلامات (${receipts.length})</h3><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-sm btn-outline" onclick="printReport()">🖨️ طباعة</button><button class="btn btn-sm btn-pdf" onclick="exportPDF('receipts')">📕 PDF</button><button class="btn btn-sm btn-success" onclick="exportCSV('receipts')">📄 CSV</button></div></div><div class="table-wrapper"><table id="reportTable-receipts"><thead><tr><th>رقم الإذن</th><th>التاريخ</th><th>الصنف</th><th>الكمية</th><th>المورد</th><th>المستلم</th></tr></thead><tbody>${receipts.map(m => { const item = getItemById(m.itemId); return `<tr><td>${m.id}</td><td>${formatDate(m.date)}</td><td>${item ? item.name : '-'}</td><td>${m.qty} ${m.unit || ''}</td><td>${m.supplier || '-'}</td><td>${m.person || '-'}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+      } else if (type === 'issues') {
+        const issues = state.movements.filter(m => m.type === 'issue');
+        html = `<div class="table-container mt-3"><div class="table-header"><h3>📤 تقرير الصرف (${issues.length})</h3><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-sm btn-outline" onclick="printReport()">🖨️ طباعة</button><button class="btn btn-sm btn-pdf" onclick="exportPDF('issues')">📕 PDF</button><button class="btn btn-sm btn-success" onclick="exportCSV('issues')">📄 CSV</button></div></div><div class="table-wrapper"><table id="reportTable-issues"><thead><tr><th>رقم الإذن</th><th>التاريخ</th><th>الصنف</th><th>الكمية</th><th>الشخص</th><th>السبب</th></tr></thead><tbody>${issues.map(m => { const item = getItemById(m.itemId); return `<tr><td>${m.id}</td><td>${formatDate(m.date)}</td><td>${item ? item.name : '-'}</td><td>${m.qty} ${m.unit || ''}</td><td>${m.person || '-'}</td><td>${m.reason || '-'}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+      } else if (type === 'lowstock') {
+        const low = state.items.filter(i => { const b = calculateBalance(i.id).current; return b > 0 && b <= (i.minQty || 0); });
+        html = `<div class="table-container mt-3"><div class="table-header"><h3>⚠️ تقرير الأصناف الناقصة (${low.length})</h3><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-sm btn-outline" onclick="printReport()">🖨️ طباعة</button><button class="btn btn-sm btn-pdf" onclick="exportPDF('lowstock')">📕 PDF</button><button class="btn btn-sm btn-success" onclick="exportCSV('lowstock')">📄 CSV</button></div></div><div class="table-wrapper"><table id="reportTable-lowstock"><thead><tr><th>الكود</th><th>الصنف</th><th>الرصيد</th><th>الحد الأدنى</th><th>النقص</th></tr></thead><tbody>${low.map(item => { const bal = calculateBalance(item.id).current; const deficit = (item.minQty || 0) - bal; return `<tr><td>${item.code}</td><td>${item.name}</td><td>${bal}</td><td>${item.minQty || 0}</td><td style="color:var(--danger);font-weight:700;">${deficit}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+      } else if (type === 'outofstock') {
+        const out = state.items.filter(i => calculateBalance(i.id).current <= 0);
+        html = `<div class="table-container mt-3"><div class="table-header"><h3>🔴 تقرير الأصناف المنتهية (${out.length})</h3><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-sm btn-outline" onclick="printReport()">🖨️ طباعة</button><button class="btn btn-sm btn-pdf" onclick="exportPDF('outofstock')">📕 PDF</button><button class="btn btn-sm btn-success" onclick="exportCSV('outofstock')">📄 CSV</button></div></div><div class="table-wrapper"><table id="reportTable-outofstock"><thead><tr><th>الكود</th><th>الصنف</th><th>القسم</th><th>الوحدة</th></tr></thead><tbody>${out.map(item => { const section = getSectionById(item.sectionId); return `<tr><td>${item.code}</td><td>${item.name}</td><td>${section ? section.name : '-'}</td><td>${item.unit || '-'}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+      } else if (type === 'byperson') {
+        const people = {};
+        state.movements.filter(m => m.type === 'issue').forEach(m => {
+          const person = m.person || 'غير محدد';
+          if (!people[person]) people[person] = [];
+          people[person].push(m);
+        });
+        html = `<div class="table-container mt-3"><div class="table-header"><h3>👤 تقرير حركة الأشخاص</h3><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-sm btn-outline" onclick="printReport()">🖨️ طباعة</button><button class="btn btn-sm btn-pdf" onclick="exportPDF('byperson')">📕 PDF</button><button class="btn btn-sm btn-success" onclick="exportCSV('byperson')">📄 CSV</button></div></div><div class="table-wrapper"><table id="reportTable-byperson"><thead><tr><th>الشخص</th><th>عدد عمليات السحب</th><th>إجمالي الكمية</th></tr></thead><tbody>${Object.entries(people).map(([name, movs]) => { const totalQty = movs.reduce((s, m) => s + (m.qty || 0), 0); return `<tr><td><strong>${name}</strong></td><td>${movs.length}</td><td>${totalQty}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+      } else if (type === 'bysection') {
+        html = `<div class="table-container mt-3"><div class="table-header"><h3>📂 تقرير حسب القسم</h3><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-sm btn-outline" onclick="printReport()">🖨️ طباعة</button><button class="btn btn-sm btn-pdf" onclick="exportPDF('bysection')">📕 PDF</button><button class="btn btn-sm btn-success" onclick="exportCSV('bysection')">📄 CSV</button></div></div><div class="table-wrapper"><table id="reportTable-bysection"><thead><tr><th>القسم</th><th>عدد الأصناف</th><th>إجمالي الكميات</th><th>عمليات الاستلام</th><th>عمليات الصرف</th></tr></thead><tbody>${state.sections.map(section => { const items = getSectionItems(section.id); const itemIds = items.map(i => i.id); const totalQty = items.reduce((s, i) => s + calculateBalance(i.id).current, 0); const receipts = state.movements.filter(m => m.type === 'receipt' && itemIds.includes(m.itemId)).length; const issues = state.movements.filter(m => m.type === 'issue' && itemIds.includes(m.itemId)).length; return `<tr><td><strong>${section.icon} ${section.name}</strong></td><td>${items.length}</td><td>${totalQty}</td><td>${receipts}</td><td>${issues}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+      } else if (type === 'period') {
+        html = `<div class="table-container mt-3"><div class="table-header"><h3>📅 تقرير حسب الفترة</h3><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-sm btn-outline" onclick="printReport()">🖨️ طباعة</button><button class="btn btn-sm btn-pdf" onclick="exportPDF('period')">📕 PDF</button><button class="btn btn-sm btn-success" onclick="exportCSV('period')">📄 CSV</button></div></div><div class="filters-bar"><input type="date" class="form-control" id="periodFrom" /><input type="date" class="form-control" id="periodTo" /><button class="btn btn-sm btn-primary" onclick="filterPeriodReport()">عرض</button></div><div class="table-wrapper" id="periodReportBody"><table id="reportTable-period"><thead><tr><th>رقم الإذن</th><th>التاريخ</th><th>النوع</th><th>الصنف</th><th>الكمية</th><th>الشخص</th></tr></thead><tbody><tr><td colspan="6" class="table-empty">اختر فترة زمنية واضغط عرض</td></tr></tbody></table></div></div>`;
+      }
+      container.innerHTML = html;
+    }
+
+    function filterPeriodReport() {
+      const from = document.getElementById('periodFrom').value;
+      const to = document.getElementById('periodTo').value;
+      if (!from || !to) { showToast('يجب اختيار الفترة', 'warning'); return; }
+      const filtered = state.movements.filter(m => m.date >= from && m.date <= to);
+      const tbody = document.querySelector('#periodReportBody tbody');
+      tbody.innerHTML = filtered.length === 0 ? '<tr><td colspan="6" class="table-empty">لا توجد حركات</td></tr>' :
+        filtered.map(m => { const item = getItemById(m.itemId); return `<tr><td>${m.id}</td><td>${formatDate(m.date)}</td><td>${m.type === 'receipt' ? 'استلام' : 'صرف'}</td><td>${item ? item.name : '-'}</td><td>${m.qty}</td><td>${m.person || '-'}</td></tr>`; }).join('');
+    }
+
+    function printReport() { window.print(); }
+
+    // ==================== تصدير CSV ====================
+    function exportCSV(type) {
+      let csv = '';
+      if (type === 'inventory') { csv = 'الكود,الصنف,القسم,الوحدة,افتتاحي,مستلم,مصروف,الرصيد,الحد الأدنى\n'; state.items.forEach(item => { const bal = calculateBalance(item.id); const section = getSectionById(item.sectionId); csv += `${item.code},${item.name},${section ? section.name : ''},${item.unit || ''},${item.openingQty || 0},${bal.received},${bal.issued},${bal.current},${item.minQty || 0}\n`; }); }
+      else if (type === 'receipts') { csv = 'رقم الإذن,التاريخ,الصنف,الكمية,المورد,المستلم\n'; state.movements.filter(m => m.type === 'receipt').forEach(m => { const item = getItemById(m.itemId); csv += `${m.id},${m.date},${item ? item.name : ''},${m.qty},${m.supplier || ''},${m.person || ''}\n`; }); }
+      else if (type === 'issues') { csv = 'رقم الإذن,التاريخ,الصنف,الكمية,الشخص,السبب\n'; state.movements.filter(m => m.type === 'issue').forEach(m => { const item = getItemById(m.itemId); csv += `${m.id},${m.date},${item ? item.name : ''},${m.qty},${m.person || ''},${m.reason || ''}\n`; }); }
+      else if (type === 'lowstock') { csv = 'الكود,الصنف,الرصيد,الحد الأدنى,النقص\n'; state.items.filter(i => { const b = calculateBalance(i.id).current; return b > 0 && b <= (i.minQty || 0); }).forEach(item => { const bal = calculateBalance(item.id).current; csv += `${item.code},${item.name},${bal},${item.minQty || 0},${(item.minQty || 0) - bal}\n`; }); }
+      else if (type === 'outofstock') { csv = 'الكود,الصنف,القسم,الوحدة\n'; state.items.filter(i => calculateBalance(i.id).current <= 0).forEach(item => { const section = getSectionById(item.sectionId); csv += `${item.code},${item.name},${section ? section.name : ''},${item.unit || ''}\n`; }); }
+      else if (type === 'byperson') { csv = 'الشخص,عدد عمليات السحب,إجمالي الكمية\n'; const people = {}; state.movements.filter(m => m.type === 'issue').forEach(m => { const person = m.person || 'غير محدد'; if (!people[person]) people[person] = []; people[person].push(m); }); Object.entries(people).forEach(([name, movs]) => { const totalQty = movs.reduce((s, m) => s + (m.qty || 0), 0); csv += `${name},${movs.length},${totalQty}\n`; }); }
+      else if (type === 'bysection') { csv = 'القسم,عدد الأصناف,إجمالي الكميات,عمليات الاستلام,عمليات الصرف\n'; state.sections.forEach(section => { const items = getSectionItems(section.id); const itemIds = items.map(i => i.id); const totalQty = items.reduce((s, i) => s + calculateBalance(i.id).current, 0); const receipts = state.movements.filter(m => m.type === 'receipt' && itemIds.includes(m.itemId)).length; const issues = state.movements.filter(m => m.type === 'issue' && itemIds.includes(m.itemId)).length; csv += `${section.name},${items.length},${totalQty},${receipts},${issues}\n`; }); }
+      else if (type === 'period') { const from = document.getElementById('periodFrom')?.value || ''; const to = document.getElementById('periodTo')?.value || ''; const filtered = state.movements.filter(m => m.date >= from && m.date <= to); csv = 'رقم الإذن,التاريخ,النوع,الصنف,الكمية,الشخص\n'; filtered.forEach(m => { const item = getItemById(m.itemId); csv += `${m.id},${m.date},${m.type === 'receipt' ? 'استلام' : 'صرف'},${item ? item.name : ''},${m.qty},${m.person || ''}\n`; }); }
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `report_${type}_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+      showToast('تم تصدير التقرير بنجاح', 'success');
+    }
+
+    // ==================== تصدير PDF ====================
+    const PDF_CONFIG = { pageWidth: 1400, pageHeight: 990, pagePaddingY: 25, headerHeight: 120, titleBarHeight: 55, summaryHeight: 90, tableHeaderHeight: 48, rowHeight: 40, footerHeight: 110, safetyMargin: 15 };
+
+    function getReportTitle(type) {
+      const titles = { inventory: 'تقرير المخزون الحالي', receipts: 'تقرير الاستلامات', issues: 'تقرير الصرف', lowstock: 'تقرير الأصناف الناقصة', outofstock: 'تقرير الأصناف المنتهية', byperson: 'تقرير حركة الأشخاص', bysection: 'تقرير حسب القسم', period: 'تقرير حسب الفترة الزمنية' };
+      return titles[type] || 'تقرير';
+    }
+
+    function getReportSummary(type) {
+      const summaries = [];
+      if (type === 'inventory') { summaries.push({ val: state.items.length, lbl: 'إجمالي الأصناف' }); summaries.push({ val: state.items.reduce((s, i) => s + calculateBalance(i.id).current, 0).toLocaleString(), lbl: 'إجمالي الكميات' }); summaries.push({ val: state.items.filter(i => calculateBalance(i.id).current <= 0).length, lbl: 'أصناف نفدت' }); summaries.push({ val: state.items.filter(i => { const b = calculateBalance(i.id).current; return b > 0 && b <= (i.minQty || 0); }).length, lbl: 'أصناف منخفضة' }); }
+      else if (type === 'receipts') { const r = state.movements.filter(m => m.type === 'receipt'); summaries.push({ val: r.length, lbl: 'عدد عمليات الاستلام' }); summaries.push({ val: r.reduce((s, m) => s + (m.qty || 0), 0).toLocaleString(), lbl: 'إجمالي الكميات' }); }
+      else if (type === 'issues') { const i = state.movements.filter(m => m.type === 'issue'); summaries.push({ val: i.length, lbl: 'عدد عمليات الصرف' }); summaries.push({ val: i.reduce((s, m) => s + (m.qty || 0), 0).toLocaleString(), lbl: 'إجمالي الكميات' }); }
+      else if (type === 'lowstock') { summaries.push({ val: state.items.filter(i => { const b = calculateBalance(i.id).current; return b > 0 && b <= (i.minQty || 0); }).length, lbl: 'عدد الأصناف الناقصة' }); }
+      else if (type === 'outofstock') { summaries.push({ val: state.items.filter(i => calculateBalance(i.id).current <= 0).length, lbl: 'عدد الأصناف المنتهية' }); }
+      else if (type === 'byperson') { const p = new Set(state.movements.filter(m => m.type === 'issue').map(m => m.person || 'غير محدد')); summaries.push({ val: p.size, lbl: 'عدد الأشخاص' }); summaries.push({ val: state.movements.filter(m => m.type === 'issue').length, lbl: 'إجمالي عمليات السحب' }); }
+      else if (type === 'bysection') { summaries.push({ val: state.sections.length, lbl: 'عدد الأقسام' }); summaries.push({ val: state.items.length, lbl: 'إجمالي الأصناف' }); }
+      else if (type === 'period') { const from = document.getElementById('periodFrom')?.value || ''; const to = document.getElementById('periodTo')?.value || ''; const f = state.movements.filter(m => m.date >= from && m.date <= to); summaries.push({ val: f.length, lbl: 'عدد الحركات' }); summaries.push({ val: f.filter(m => m.type === 'receipt').length, lbl: 'عمليات استلام' }); summaries.push({ val: f.filter(m => m.type === 'issue').length, lbl: 'عمليات صرف' }); }
+      return summaries;
+    }
+
+    function extractTableData(type) {
+      const table = document.getElementById(`reportTable-${type}`);
+      if (!table) return null;
+      const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.innerText.trim());
+      const rows = [];
+      table.querySelectorAll('tbody tr').forEach(tr => {
+        if (tr.querySelector('.table-empty') || tr.children.length === 1) return;
+        rows.push(Array.from(tr.querySelectorAll('td')).map(td => td.innerText.trim()));
+      });
+      return { headers, rows };
+    }
+
+    function buildPDFPage(type, headers, rows, pageIndex, totalPages, isFirstPage, totalRows) {
+      const title = getReportTitle(type);
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+      const timeStr = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+      let headerHTML = `<div class="pdf-header"><div class="pdf-logo">🏗️</div><div class="pdf-company"><h1>نظام إدارة مخزن مواد الموقع</h1><p>Site Warehouse Management System</p></div><div class="pdf-meta"><div><strong>التاريخ:</strong> ${dateStr}</div><div><strong>الوقت:</strong> ${timeStr}</div><div><strong>عدد السجلات:</strong> ${totalRows}</div></div></div>`;
+      let titleBarHTML = isFirstPage ? `<div class="pdf-title-bar">${title}</div>` : `<div class="pdf-title-bar" style="font-size:14px;padding:8px 22px;">${title} (تابع) - صفحة ${pageIndex + 1} من ${totalPages}</div>`;
+      let summaryHTML = '';
+      if (isFirstPage) { const s = getReportSummary(type); if (s.length > 0) summaryHTML = `<div class="pdf-summary">${s.map(x => `<div class="pdf-summary-item"><div class="val">${x.val}</div><div class="lbl">${x.lbl}</div></div>`).join('')}</div>`; }
+      const theadHTML = `<thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>`;
+      const tbodyHTML = `<tbody>${rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`).join('')}</tbody>`;
+      const footerHTML = `<div class="pdf-footer"><div class="signature"><div class="line">أمين المخزن</div></div><div class="center-info"><div>تم إنشاء هذا التقرير آليًا</div><div style="margin-top:4px;">© ${now.getFullYear()}</div><div class="pdf-page-number">صفحة ${pageIndex + 1} من ${totalPages}</div></div><div class="signature"><div class="line">مدير الموقع</div></div></div>`;
+      return `<div class="pdf-page">${headerHTML}${titleBarHTML}${summaryHTML}<div class="pdf-table-wrapper"><table>${theadHTML}${tbodyHTML}</table></div>${footerHTML}</div>`;
+    }
+
+    function calculateRowsPerPage() {
+      const usableHeight = PDF_CONFIG.pageHeight - (PDF_CONFIG.pagePaddingY * 2);
+      const firstPageAvailable = usableHeight - PDF_CONFIG.headerHeight - PDF_CONFIG.titleBarHeight - PDF_CONFIG.summaryHeight - PDF_CONFIG.tableHeaderHeight - PDF_CONFIG.footerHeight - PDF_CONFIG.safetyMargin;
+      const nextPageAvailable = usableHeight - PDF_CONFIG.headerHeight - 40 - PDF_CONFIG.tableHeaderHeight - PDF_CONFIG.footerHeight - PDF_CONFIG.safetyMargin;
+      return { first: Math.max(5, Math.floor(firstPageAvailable / PDF_CONFIG.rowHeight)), next: Math.max(5, Math.floor(nextPageAvailable / PDF_CONFIG.rowHeight)) };
+    }
+
+    async function exportPDF(type) {
+      try {
+        const tableData = extractTableData(type);
+        if (!tableData) { showToast('لا يوجد تقرير', 'warning'); return; }
+        const { headers, rows } = tableData;
+        if (rows.length === 0) { showToast('لا توجد بيانات', 'warning'); return; }
+        showToast('جاري إنشاء PDF...', 'info', 2000);
+        const { first, next } = calculateRowsPerPage();
+        const pages = [];
+        let idx = 0, isFirst = true;
+        while (idx < rows.length) { const cap = isFirst ? first : next; pages.push(rows.slice(idx, idx + cap)); idx += cap; isFirst = false; }
+        const template = document.getElementById('pdfTemplate');
+        const totalPages = pages.length;
+        template.innerHTML = pages.map((pr, i) => buildPDFPage(type, headers, pr, i, totalPages, i === 0, rows.length)).join('');
+        await new Promise(r => setTimeout(r, 800));
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
+        const pw = pdf.internal.pageSize.getWidth();
+        const ph = pdf.internal.pageSize.getHeight();
+        const pageEls = template.querySelectorAll('.pdf-page');
+        for (let i = 0; i < pageEls.length; i++) {
+          const canvas = await html2canvas(pageEls[i], { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false, windowWidth: PDF_CONFIG.pageWidth, windowHeight: PDF_CONFIG.pageHeight });
+          const imgData = canvas.toDataURL('image/jpeg', 0.92);
+          if (i > 0) pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', 0, 0, pw, ph);
+        }
+        pdf.save(`report_${type}_${new Date().toISOString().split('T')[0]}.pdf`);
+        template.innerHTML = '';
+        showToast(`تم تحميل PDF (${totalPages} صفحة)`, 'success');
+      } catch (err) { console.error(err); showToast('خطأ في PDF: ' + err.message, 'error'); document.getElementById('pdfTemplate').innerHTML = ''; }
+    }
+
+    // ==================== النسخ الاحتياطي ====================
+    function renderBackupPage(content, actions) {
+      const lastBackup = state.settings.lastBackup;
+      const daysSince = lastBackup ? Math.floor((Date.now() - new Date(lastBackup).getTime()) / (1000 * 60 * 60 * 24)) : null;
+      let html = `
+        <div class="cards-grid">
+          <div class="card success fade-in">
+            <div class="card-header"><div class="card-icon success">💾</div></div>
+            <div class="card-value" style="font-size:16px;">إنشاء نسخة احتياطية</div>
+            <div class="card-label">تصدير جميع البيانات</div>
+            <button class="btn btn-success mt-2 w-100" onclick="createBackup()">💾 إنشاء نسخة</button>
+          </div>
+          <div class="card info fade-in">
+            <div class="card-header"><div class="card-icon info">📥</div></div>
+            <div class="card-value" style="font-size:16px;">استرجاع نسخة</div>
+            <div class="card-label">رفع ملف JSON</div>
+            <button class="btn btn-info mt-2 w-100" onclick="document.getElementById('restoreFileInput').click()">📥 استرجاع</button>
+            <input type="file" id="restoreFileInput" accept=".json" style="display:none;" onchange="restoreBackup(event)" />
+          </div>
+        </div>
+        <div class="alert alert-info mt-3">
+          <span class="alert-icon">☁️</span>
+          <div>
+            <strong>البيانات محفوظة على Firebase!</strong><br>
+            كل تغيير يُحفظ تلقائيًا في السحابة ويُزامن فوريًا بين جميع الأجهزة المتصلة.
+          </div>
+        </div>
+        ${lastBackup ? `<div class="alert ${daysSince > 7 ? 'alert-warning' : 'alert-info'}"><span class="alert-icon">${daysSince > 7 ? '⚠️' : 'ℹ️'}</span><div>آخر نسخة: <strong>${new Date(lastBackup).toLocaleString('ar-EG')}</strong>${daysSince > 7 ? `<br>مرّ ${daysSince} يومًا.` : ''}</div></div>` : ''}
+        <div class="table-container mt-3">
+          <div class="table-header"><h3>📋 سجل العمليات</h3></div>
+          <div class="table-wrapper" style="max-height:400px;">
+            <table>
+              <thead><tr><th>التاريخ</th><th>الوقت</th><th>العملية</th><th>التفاصيل</th></tr></thead>
+              <tbody>
+                ${state.auditLog.slice(0, 50).map(log => { const d = new Date(log.timestamp); return `<tr><td>${formatDate(d.toISOString().split('T')[0])}</td><td>${d.toTimeString().slice(0,5)}</td><td>${log.action}</td><td>${log.details}</td></tr>`; }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+      content.innerHTML = html;
+    }
+
+    function createBackup() {
+      const backupData = {
+        version: '1.0',
+        exportedAt: new Date().toISOString(),
+        appName: state.settings.appName || 'نظام إدارة مخزن مواد الموقع',
+        data: {
+          sections: state.sections, items: state.items, movements: state.movements,
+          people: state.people, suppliers: state.suppliers, auditLog: state.auditLog, settings: state.settings
+        }
+      };
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `warehouse_backup_${new Date().toISOString().split('T')[0]}.json`;
+      link.click();
+      state.settings.lastBackup = new Date().toISOString();
+      updateInFirebase('settings', 'lastBackup', new Date().toISOString());
+      addAuditLog('نسخ احتياطي', 'تم إنشاء نسخة احتياطية');
+      showToast('تم إنشاء النسخة الاحتياطية بنجاح', 'success');
+      navigateTo('backup');
+    }
+
+    function restoreBackup(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const backup = JSON.parse(e.target.result);
+          if (!backup.data) throw new Error('ملف غير صالح');
+          const d = backup.data;
+          const summary = `
+            <div class="alert alert-info">
+              <span class="alert-icon">📋</span>
+              <div>
+                <strong>ملخص النسخة:</strong><br>
+                تاريخ التصدير: ${backup.exportedAt ? new Date(backup.exportedAt).toLocaleString('ar-EG') : 'غير معروف'}<br>
+                الأقسام: ${(d.sections || []).length} | الأصناف: ${(d.items || []).length}<br>
+                الحركات: ${(d.movements || []).length} | الأشخاص: ${(d.people || []).length}
+              </div>
+            </div>
+            <div class="alert alert-danger">
+              <span class="alert-icon">⚠️</span>
+              <div>سيتم <strong>استبدال جميع البيانات على Firebase</strong> بالنسخة الاحتياطية. هل أنت متأكد؟</div>
+            </div>
+          `;
+          openModal('📥 استرجاع نسخة احتياطية', summary, `
+            <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+            <button class="btn btn-danger" onclick="confirmRestore(${JSON.stringify(JSON.stringify(backup))})">📥 استرجاع</button>
+          `);
+        } catch (err) { showToast('ملف غير صالح: ' + err.message, 'error'); }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    async function confirmRestore(backupJson) {
+      try {
+        const backup = JSON.parse(backupJson);
+        const d = backup.data;
+
+        // تحويل arrays إلى objects بمفاتيح id
+        const toObj = (arr) => {
+          const obj = {};
+          (arr || []).forEach(item => { if (item && item.id) obj[item.id] = item; });
+          return obj;
+        };
+
+        const newData = {
+          sections: toObj(d.sections),
+          items: toObj(d.items),
+          movements: toObj(d.movements),
+          people: toObj(d.people),
+          suppliers: toObj(d.suppliers),
+          auditLog: toObj(d.auditLog),
+          settings: d.settings || {}
+        };
+
+        // حذف جميع البيانات الحالية أولًا
+        await db.ref(ROOT_PATH).remove();
+        // إعادة رفع البيانات
+        await db.ref(ROOT_PATH).set(newData);
+        await addAuditLog('استرجاع نسخة احتياطية', 'تم استرجاع البيانات من نسخة احتياطية');
+        closeModal();
+        showToast('تم استرجاع البيانات بنجاح', 'success');
+        navigateTo('dashboard');
+      } catch (e) { console.error(e); showToast('حدث خطأ أثناء الاسترجاع', 'error'); }
+    }
+
+    // ==================== الإعدادات ====================
+    function renderSettingsPage(content, actions) {
+      const lastBackup = state.settings.lastBackup;
+      let html = `
+        <div class="cards-grid">
+          <div class="card warning fade-in">
+            <div class="card-header"><div class="card-icon warning">🗑️</div></div>
+            <div class="card-value" style="font-size:16px;">مسح البيانات</div>
+            <div class="card-label">حذف جميع البيانات من Firebase</div>
+            <button class="btn btn-danger mt-2 w-100" onclick="clearAllData()">🗑️ مسح الكل</button>
+          </div>
+          <div class="card primary fade-in">
+            <div class="card-header"><div class="card-icon primary">☁️</div></div>
+            <div class="card-value" style="font-size:16px;">Firebase</div>
+            <div class="card-label">متصل بقاعدة البيانات السحابية</div>
+            <div style="margin-top:12px;font-size:12px;color:var(--text-light);">
+              أصناف: ${state.items.length} | حركات: ${state.movements.length} | أشخاص: ${state.people.length}
+            </div>
+          </div>
+        </div>
+
+        <div class="table-container mt-3">
+          <div class="table-header"><h3>☁️ معلومات قاعدة البيانات</h3></div>
+          <div style="padding: 16px;">
+            <div class="alert alert-success">
+              <span class="alert-icon">✅</span>
+              <div>
+                <strong>Firebase Realtime Database</strong><br>
+                البيانات محفوظة على السحابة ومتزامنة فوريًا بين جميع الأجهزة.
+              </div>
+            </div>
+            <div style="display:grid;gap:10px;">
+              <div style="background:#f8fafc;padding:12px;border-radius:8px;border:1px solid #e2e8f0;">
+                <div style="font-size:11px;color:#64748b;margin-bottom:4px;">🔗 رابط قاعدة البيانات</div>
+                <div style="font-size:11px;font-weight:600;color:#1e3a5f;word-break:break-all;direction:ltr;text-align:left;">${firebaseConfig.databaseURL}</div>
+              </div>
+              <div style="background:#f8fafc;padding:12px;border-radius:8px;border:1px solid #e2e8f0;">
+                <div style="font-size:11px;color:#64748b;margin-bottom:4px;">📁 المسار الرئيسي</div>
+                <div style="font-size:11px;font-weight:600;color:#1e3a5f;direction:ltr;text-align:left;">/${ROOT_PATH}</div>
+              </div>
+              <div style="background:#f8fafc;padding:12px;border-radius:8px;border:1px solid #e2e8f0;">
+                <div style="font-size:11px;color:#64748b;margin-bottom:4px;">🟢 حالة الاتصال</div>
+                <div style="font-size:11px;font-weight:600;color:${isConnected ? '#059669' : '#dc2626'};">
+                  ${isConnected ? 'متصل ✓' : 'غير متصل ✗'}
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:14px;">
+              <button class="btn btn-info btn-sm" onclick="checkFirebaseConnection()">🔄 اختبار الاتصال</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-container mt-3">
+          <div class="table-header"><h3>📊 إحصائيات سريعة</h3></div>
+          <div style="padding: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;">
+            <div class="detail-card">
+              <div class="detail-value">${state.sections.length}</div>
+              <div class="detail-label">الأقسام</div>
+            </div>
+            <div class="detail-card">
+              <div class="detail-value">${state.items.length}</div>
+              <div class="detail-label">الأصناف</div>
+            </div>
+            <div class="detail-card">
+              <div class="detail-value">${state.movements.length}</div>
+              <div class="detail-label">الحركات</div>
+            </div>
+            <div class="detail-card">
+              <div class="detail-value">${state.people.length}</div>
+              <div class="detail-label">الأشخاص</div>
+            </div>
+          </div>
+        </div>
+      `;
+      content.innerHTML = html;
+    }
+
+    async function checkFirebaseConnection() {
+      showToast('جاري اختبار الاتصال...', 'info', 1500);
+      try {
+        await db.ref('.info/connected').once('value');
+        const testRef = db.ref(`${ROOT_PATH}/_healthcheck`);
+        await testRef.set({ ts: Date.now() });
+        await testRef.remove();
+        showToast('✅ الاتصال بـ Firebase يعمل بشكل ممتاز', 'success');
+      } catch (e) {
+        showToast('❌ فشل الاتصال: ' + e.message, 'error');
+      }
+    }
+
+    function clearAllData() {
+      openModal('🗑️ مسح جميع البيانات', `
+        <div class="alert alert-danger">
+          <span class="alert-icon">⚠️</span>
+          <div>
+            <strong>تحذير خطير!</strong><br>
+            سيتم حذف جميع البيانات من Firebase نهائيًا:<br>
+            • ${state.sections.length} قسم<br>
+            • ${state.items.length} صنف<br>
+            • ${state.movements.length} حركة<br>
+            • ${state.people.length} شخص<br><br>
+            لا يمكن التراجع! هل أنت متأكد؟
+          </div>
+        </div>
+      `, `
+        <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
+        <button class="btn btn-danger" onclick="confirmClearAll()">🗑️ نعم، امسح الكل</button>
+      `);
+    }
+
+    async function confirmClearAll() {
+      try {
+        // حذف كل شيء ما عدا الأقسام الافتراضية
+        await db.ref(ROOT_PATH).remove();
+
+        // إعادة إنشاء الأقسام الافتراضية
+        const defaultSectionsObj = {};
+        DEFAULT_SECTIONS.forEach(s => { defaultSectionsObj[s.id] = s; });
+        await db.ref(`${ROOT_PATH}/sections`).set(defaultSectionsObj);
+        await db.ref(`${ROOT_PATH}/settings`).set({
+          appName: 'نظام إدارة مخزن مواد الموقع',
+          initialized: true,
+          createdAt: new Date().toISOString()
+        });
+
+        closeModal();
+        showToast('تم مسح جميع البيانات وإعادة التهيئة', 'success');
+        navigateTo('dashboard');
+      } catch (e) {
+        console.error(e);
+        showToast('خطأ في المسح: ' + e.message, 'error');
+      }
+    }
+
+    // ==================== اختصارات لوحة المفاتيح ====================
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { closeModal(); closeSidebar(); }
+    });
+
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 768) closeSidebar();
+    });
+
+    // ==================== تصدير الدوال ====================
+    window.toggleSidebar = toggleSidebar;
+    window.closeSidebar = closeSidebar;
+    window.navigateTo = navigateTo;
+    window.closeModal = closeModal;
+    window.openAddItemModal = openAddItemModal;
+    window.saveNewItem = saveNewItem;
+    window.editItem = editItem;
+    window.saveEditItem = saveEditItem;
+    window.deleteItem = deleteItem;
+    window.confirmDeleteItem = confirmDeleteItem;
+    window.viewItemDetail = viewItemDetail;
+    window.openReceiptModal = openReceiptModal;
+    window.saveReceipt = saveReceipt;
+    window.openIssueModal = openIssueModal;
+    window.saveIssue = saveIssue;
+    window.editMovement = editMovement;
+    window.saveEditMovement = saveEditMovement;
+    window.deleteMovement = deleteMovement;
+    window.confirmDeleteMovement = confirmDeleteMovement;
+    window.addNewSection = addNewSection;
+    window.saveNewSection = saveNewSection;
+    window.deleteSection = deleteSection;
+    window.confirmDeleteSection = confirmDeleteSection;
+    window.openAddPersonModal = openAddPersonModal;
+    window.saveNewPerson = saveNewPerson;
+    window.editPerson = editPerson;
+    window.saveEditPerson = saveEditPerson;
+    window.deletePerson = deletePerson;
+    window.confirmDeletePerson = confirmDeletePerson;
+    window.showReport = showReport;
+    window.printReport = printReport;
+    window.exportCSV = exportCSV;
+    window.exportPDF = exportPDF;
+    window.filterPeriodReport = filterPeriodReport;
+    window.createBackup = createBackup;
+    window.restoreBackup = restoreBackup;
+    window.confirmRestore = confirmRestore;
+    window.clearAllData = clearAllData;
+    window.confirmClearAll = confirmClearAll;
+    window.filterSectionItems = filterSectionItems;
+    window.filterAllItems = filterAllItems;
+    window.filterMovements = filterMovements;
+    window.updateReceiptItems = updateReceiptItems;
+    window.updateReceiptInfo = updateReceiptInfo;
+    window.updateIssueItems = updateIssueItems;
+    window.updateIssueInfo = updateIssueInfo;
+    window.checkFirebaseConnection = checkFirebaseConnection;
+  </script>
+</body>
+</html>
