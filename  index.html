@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1e3a8a">
+<title>بوابة الموظف — نظام الحضور</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+:root{
+  --primary:#1e3a8a; --primary-light:#3b5bdb;
+  --success:#059669; --danger:#dc2626; --warning:#d97706;
+  --bg:#f1f5f9; --card:#fff; --text:#0f172a; --muted:#64748b;
+  --border:#e2e8f0; --radius:16px;
+  --shadow:0 4px 24px rgba(15,23,42,.08);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{
+  font-family:'Segoe UI',Tahoma,system-ui,sans-serif;
+  background:linear-gradient(160deg,#eff6ff 0%,#f8fafc 100%);
+  color:var(--text);min-height:100vh;line-height:1.6;
+  padding:16px;padding-bottom:32px;
+}
+.container{max-width:480px;margin:0 auto}
+.hidden{display:none!important}
+
+.demo-banner{
+  background:#fef3c7;color:#92400e;padding:10px 14px;
+  border-radius:12px;font-size:12px;margin-bottom:16px;
+  border-right:4px solid #f59e0b;text-align:center;
+}
+.demo-banner.err{background:#fee2e2;color:#991b1b;border-right-color:#dc2626}
+
+.brand{
+  display:flex;align-items:center;gap:12px;margin-bottom:20px;
+  padding:14px 16px;background:var(--card);border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+.brand-logo{
+  width:44px;height:44px;border-radius:12px;
+  background:linear-gradient(135deg,var(--primary),var(--primary-light));
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:22px;font-weight:700;flex-shrink:0;
+}
+.brand-text h1{font-size:16px;font-weight:700;color:var(--primary)}
+.brand-text p{font-size:12px;color:var(--muted)}
+
+.profile{
+  display:flex;align-items:center;gap:14px;
+  padding:16px;background:linear-gradient(135deg,#1e3a8a,#3b5bdb);
+  border-radius:var(--radius);color:#fff;box-shadow:var(--shadow);
+  margin-bottom:16px;
+}
+.avatar{
+  width:56px;height:56px;border-radius:50%;
+  background:rgba(255,255,255,.2);display:flex;align-items:center;
+  justify-content:center;font-size:24px;font-weight:700;flex-shrink:0;
+  border:2px solid rgba(255,255,255,.3);
+}
+.profile-info h3{font-size:16px;margin-bottom:2px}
+.profile-info p{font-size:12px;opacity:.85}
+
+.card{
+  background:var(--card);border-radius:var(--radius);
+  padding:20px;box-shadow:var(--shadow);margin-bottom:16px;
+}
+.card h2{font-size:16px;margin-bottom:14px;color:var(--primary)}
+
+.state-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 16px;border-radius:999px;font-size:13px;font-weight:600;
+}
+.state-badge.in{background:#d1fae5;color:#065f46}
+.state-badge.out{background:#fee2e2;color:#991b1b}
+.state-badge.none{background:#f1f5f9;color:#475569}
+.badge-row{text-align:center;margin-bottom:16px}
+
+.status-row{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;
+}
+.stat-card{
+  background:var(--card);border-radius:14px;padding:14px;
+  box-shadow:var(--shadow);text-align:center;
+}
+.stat-card .label{font-size:11px;color:var(--muted);margin-bottom:4px}
+.stat-card .value{font-size:15px;font-weight:700;color:var(--primary)}
+.stat-card .value.muted{color:var(--muted);font-weight:400}
+
+.geo-box{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 14px;background:#f8fafc;border-radius:12px;
+  border:1.5px solid var(--border);margin-bottom:16px;font-size:13px;
+}
+.geo-dot{
+  width:10px;height:10px;border-radius:50%;flex-shrink:0;
+  background:#94a3b8;
+}
+.geo-dot.ok{background:#10b981;box-shadow:0 0 0 4px rgba(16,185,129,.2)}
+.geo-dot.err{background:#dc2626;box-shadow:0 0 0 4px rgba(220,38,38,.2)}
+.geo-dot.loading{background:#f59e0b;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;padding:14px 20px;border:none;border-radius:12px;
+  font-size:16px;font-weight:600;font-family:inherit;
+  cursor:pointer;transition:transform .1s,box-shadow .2s,opacity .2s;
+  user-select:none;
+}
+.btn:active:not(:disabled){transform:scale(.97)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-success{background:linear-gradient(135deg,#059669,#10b981);color:#fff;box-shadow:0 8px 20px rgba(5,150,105,.3)}
+.btn-danger{background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;box-shadow:0 8px 20px rgba(220,38,38,.3)}
+.btn-ghost{background:#fff;color:var(--primary);border:1.5px solid var(--border);padding:8px 14px;font-size:13px;width:auto}
+.btn-lg{padding:20px;font-size:18px;border-radius:16px;min-height:80px;flex-direction:column;gap:4px}
+.btn-lg .icon{font-size:32px}
+.btn-lg .sub{font-size:12px;opacity:.85;font-weight:400}
+.actions{display:grid;gap:12px;margin-bottom:16px}
+
+.alert{
+  padding:14px 16px;border-radius:12px;font-size:14px;
+  margin-bottom:14px;display:flex;align-items:flex-start;gap:10px;
+  animation:slideDown .3s ease;
+}
+@keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.alert-success{background:#d1fae5;color:#065f46;border-right:4px solid #10b981}
+.alert-error{background:#fee2e2;color:#991b1b;border-right:4px solid #dc2626}
+.alert-warning{background:#fef3c7;color:#92400e;border-right:4px solid #f59e0b}
+
+.records-list{max-height:340px;overflow-y:auto;margin:0 -4px;padding:0 4px}
+.record-item{
+  display:flex;align-items:center;gap:12px;padding:12px;
+  background:#f8fafc;border-radius:12px;margin-bottom:8px;
+  border-right:3px solid var(--border);
+}
+.record-item.in{border-right-color:#10b981}
+.record-item.out{border-right-color:#ef4444}
+.record-icon{font-size:20px;flex-shrink:0}
+.record-body{flex:1;min-width:0}
+.record-title{font-size:14px;font-weight:600}
+.record-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.record-time{font-size:12px;font-weight:600;color:var(--primary);white-space:nowrap}
+
+.spinner{
+  width:18px;height:18px;border:2.5px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(120px);
+  background:#0f172a;color:#fff;padding:14px 20px;border-radius:12px;
+  font-size:14px;z-index:9999;max-width:90vw;text-align:center;
+  box-shadow:0 10px 30px rgba(0,0,0,.3);
+  transition:transform .35s cubic-bezier(.34,1.56,.64,1);
+}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.success{background:#059669}
+.toast.error{background:#dc2626}
+
+.footer-link{text-align:center;padding:16px;font-size:13px}
+.footer-link a{color:var(--primary);text-decoration:none;font-weight:600}
+.empty{text-align:center;padding:24px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <div id="connBanner" class="demo-banner">
+    🔥 متصل بـ Firebase — <span id="connStatus">جاري الاتصال...</span>
+  </div>
+
+  <div class="brand">
+    <div class="brand-logo">ح</div>
+    <div class="brand-text">
+      <h1>نظام الحضور الذكي</h1>
+      <p>بوابة الموظف (نظام 12 ساعة)</p>
+    </div>
+  </div>
+
+  <div class="profile">
+    <div class="avatar" id="avatar">؟</div>
+    <div class="profile-info">
+      <h3 id="empName">—</h3>
+      <p id="empMeta">—</p>
+    </div>
+  </div>
+
+  <div class="badge-row">
+    <span id="stateBadge" class="state-badge none">⏳ جاري التحميل</span>
+  </div>
+
+  <div id="alertBox"></div>
+
+  <div class="status-row">
+    <div class="stat-card">
+      <div class="label">آخر حضور</div>
+      <div class="value muted" id="lastIn">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">آخر انصراف</div>
+      <div class="value muted" id="lastOut">—</div>
+    </div>
+  </div>
+
+  <div class="geo-box">
+    <div class="geo-dot" id="geoDot"></div>
+    <div style="flex:1">
+      <div id="geoText" style="font-weight:600">جاري تحديد الموقع...</div>
+      <div id="geoSub" style="font-size:11px;color:var(--muted)"></div>
+    </div>
+    <button id="retryGeo" class="btn btn-ghost">🔄</button>
+  </div>
+
+  <div class="actions">
+    <button id="checkInBtn" class="btn btn-success btn-lg" disabled>
+      <span class="icon">✅</span>
+      <span class="btn-text">تسجيل الحضور</span>
+      <span class="sub" id="checkInTime"></span>
+      <span class="spinner hidden"></span>
+    </button>
+    <button id="checkOutBtn" class="btn btn-danger btn-lg" disabled>
+      <span class="icon">🚪</span>
+      <span class="btn-text">تسجيل الانصراف</span>
+      <span class="sub" id="checkOutTime"></span>
+      <span class="spinner hidden"></span>
+    </button>
+  </div>
+
+  <div class="card">
+    <h2>📋 سجل اليوم</h2>
+    <div id="recordsList" class="records-list">
+      <p class="empty">لا توجد سجلات بعد</p>
+    </div>
+  </div>
+
+  <div class="footer-link">
+    <a href="admin-demo.html">🎯 الانتقال إلى لوحة الشركة (الأرشيف) ←</a>
+  </div>
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getDatabase, ref, push, set, get, query, orderByChild,
+  equalTo, onValue
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDDHwYOfLPK1MLdzZwgukCpxFvaxwnHjLs",
+  authDomain: "bloom-store-28c12.firebaseapp.com",
+  databaseURL: "https://bloom-store-28c12-default-rtdb.firebaseio.com",
+  projectId: "bloom-store-28c12",
+  storageBucket: "bloom-store-28c12.firebasestorage.app",
+  messagingSenderId: "482044642196",
+  appId: "1:482044642196:web:37858a63194372ed59c581"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getDatabase(app);
+
+// بيانات الموظف الحالي
+const CURRENT_EMPLOYEE = {
+  id: 'emp_demo_001',
+  fullName: 'أحمد محمد علي',
+  employeeNumber: '1001',
+  department: 'الهندسة'
+};
+
+// إعدادات وقت العمل (8:30 ص إلى 4:30 م)
+const WORK_START_HOUR = 8;
+const WORK_START_MIN = 30;
+const WORK_END_HOUR = 16;
+const WORK_END_MIN = 30;
+
+const $ = (id) => document.getElementById(id);
+const pad = (n) => String(n).padStart(2, '0');
+
+// تنسيق 12 ساعة
+const fmt12Time = (ts) => {
+  const d = new Date(ts);
+  let h = d.getHours();
+  const m = pad(d.getMinutes());
+  const ampm = h >= 12 ? 'م' : 'ص';
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+};
+
+const todayKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
+function showToast(msg, type='info') {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = `toast show ${type}`;
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.className = 'toast', 3500);
+}
+function showAlert(msg, type='info') {
+  $('alertBox').innerHTML = `<div class="alert alert-${type}">${msg}</div>`;
+  setTimeout(() => { $('alertBox').innerHTML = ''; }, 6000);
+}
+function setLoading(el, on) {
+  const sp = el.querySelector('.spinner');
+  if (on) { sp?.classList.remove('hidden'); el.disabled = true; }
+  else    { sp?.classList.add('hidden'); }
+}
+
+let position = null;
+let todayRecords = [];
+let unsub = null;
+let submitting = false;
+let connected = false;
+
+onValue(ref(db, '.info/connected'), (snap) => {
+  connected = snap.val() === true;
+  const banner = $('connBanner');
+  const status = $('connStatus');
+  if (connected) {
+    banner.classList.remove('err');
+    banner.style.background = '#d1fae5';
+    banner.style.color = '#065f46';
+    banner.style.borderRightColor = '#10b981';
+    status.textContent = '✅ متصل';
+  } else {
+    banner.classList.add('err');
+    banner.style.background = '#fee2e2';
+    banner.style.color = '#991b1b';
+    banner.style.borderRightColor = '#dc2626';
+    status.textContent = '⚠️ غير متصل — تحقق من الشبكة';
+  }
+});
+
+function renderProfile() {
+  $('empName').textContent = CURRENT_EMPLOYEE.fullName;
+  $('empMeta').textContent = `رقم: ${CURRENT_EMPLOYEE.employeeNumber} • ${CURRENT_EMPLOYEE.department}`;
+  $('avatar').textContent = CURRENT_EMPLOYEE.fullName.charAt(0);
+}
+
+function subscribeTodayRecords() {
+  if (unsub) unsub();
+  const q = query(
+    ref(db, 'attendanceRecords'),
+    orderByChild('employeeId_dateKey'),
+    equalTo(`${CURRENT_EMPLOYEE.id}_${todayKey()}`)
+  );
+  unsub = onValue(q, (snap) => {
+    todayRecords = [];
+    snap.forEach((c) => todayRecords.push({ id: c.key, ...c.val() }));
+    todayRecords.sort((a,b) => a.serverTimestamp - b.serverTimestamp);
+    renderState();
+  }, (err) => {
+    showAlert('فشل تحميل السجلات: ' + err.message, 'error');
+  });
+}
+
+function computeState() {
+  if (!todayRecords.length) return { state: 'none', last: null };
+  const last = todayRecords[todayRecords.length - 1];
+  return { state: last.type === 'check_in' ? 'in' : 'out', last };
+}
+
+function renderState() {
+  const { state, last } = computeState();
+  const badge = $('stateBadge');
+  const inBtn  = $('checkInBtn');
+  const outBtn = $('checkOutBtn');
+
+  const lastIn  = [...todayRecords].reverse().find(r => r.type === 'check_in');
+  const lastOut = [...todayRecords].reverse().find(r => r.type === 'check_out');
+
+  $('lastIn').textContent  = lastIn  ? fmt12Time(lastIn.serverTimestamp)  : '—';
+  $('lastOut').textContent = lastOut ? fmt12Time(lastOut.serverTimestamp) : '—';
+  $('lastIn').classList.toggle('muted', !lastIn);
+  $('lastOut').classList.toggle('muted', !lastOut);
+
+  if (state === 'none') {
+    badge.className = 'state-badge none';
+    badge.textContent = '🕐 لم تسجل حضورك اليوم';
+  } else if (state === 'in') {
+    badge.className = 'state-badge in';
+    badge.textContent = `✅ أنت في العمل منذ ${fmt12Time(last.serverTimestamp)}`;
+  } else {
+    badge.className = 'state-badge out';
+    badge.textContent = `🚪 سجلت انصرافك الساعة ${fmt12Time(last.serverTimestamp)}`;
+  }
+
+  inBtn.classList.toggle('hidden',  state !== 'none');
+  outBtn.classList.toggle('hidden', state !== 'in');
+  inBtn.disabled  = !position || submitting;
+  outBtn.disabled = !position || submitting;
+
+  renderRecords();
+}
+
+function renderRecords() {
+  const list = $('recordsList');
+  if (!todayRecords.length) {
+    list.innerHTML = '<p class="empty">لا توجد سجلات اليوم</p>';
+    return;
+  }
+  list.innerHTML = todayRecords.map(r => {
+    const isIn = r.type === 'check_in';
+    const mapLink = r.latitude
+      ? `<a href="https://www.google.com/maps?q=${r.latitude},${r.longitude}" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:none">📍 عرض على الخريطة</a>`
+      : '';
+    return `
+      <div class="record-item ${isIn ? 'in' : 'out'}">
+        <div class="record-icon">${isIn ? '🟢' : '🔴'}</div>
+        <div class="record-body">
+          <div class="record-title">${isIn ? 'حضور' : 'انصراف'}</div>
+          <div class="record-meta">${mapLink}</div>
+        </div>
+        <div class="record-time">${fmt12Time(r.serverTimestamp)}</div>
+      </div>`;
+  }).join('');
+}
+
+function initGeolocation() {
+  const dot = $('geoDot');
+  const txt = $('geoText');
+  const sub = $('geoSub');
+
+  if (!navigator.geolocation) {
+    dot.className = 'geo-dot err';
+    txt.textContent = 'خدمة الموقع غير مدعومة';
+    sub.textContent = 'استخدم متصفحًا حديثًا';
+    return;
+  }
+
+  dot.className = 'geo-dot loading';
+  txt.textContent = 'جاري تحديد موقعك...';
+  sub.textContent = 'يُرجى السماح بالوصول للموقع';
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      position = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+        ts: pos.timestamp
+      };
+      dot.className = 'geo-dot ok';
+      txt.textContent = 'تم تحديد موقعك بنجاح';
+      sub.textContent = `دقة ±${Math.round(position.accuracy)}م`;
+      renderState();
+    },
+    (err) => {
+      dot.className = 'geo-dot err';
+      const msgs = {
+        1: 'رفضت إذن الموقع — يجب السماح للتسجيل',
+        2: 'الموقع غير متاح حاليًا',
+        3: 'انتهت مهلة تحديد الموقع'
+      };
+      txt.textContent = msgs[err.code] || 'فشل تحديد الموقع';
+      sub.textContent = 'اضغط 🔄 لإعادة المحاولة';
+      position = null;
+      renderState();
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+}
+
+async function submitAttendance(type) {
+  if (submitting) return;
+  if (!position) { showToast('لم يتم تحديد الموقع بعد', 'error'); return; }
+  if (!connected) { showToast('لا يوجد اتصال بالإنترنت', 'error'); return; }
+
+  submitting = true;
+  const btn = type === 'check_in' ? $('checkInBtn') : $('checkOutBtn');
+  setLoading(btn, true);
+
+  try {
+    const dateKey = todayKey();
+    const recordId = push(ref(db, 'attendanceRecords')).key;
+    const now = Date.now();
+    
+    // حساب التأخير والأوفرتايم عند الحضور
+    let lateMinutes = 0;
+    let earlyLeaveMinutes = 0;
+
+    if (type === 'check_in') {
+      const recordTime = new Date(now);
+      const workStart = new Date(now);
+      workStart.setHours(WORK_START_HOUR, WORK_START_MIN, 0, 0);
+      
+      if (recordTime > workStart) {
+        lateMinutes = Math.floor((recordTime - workStart) / 60000);
+      }
+    } else if (type === 'check_out') {
+      const recordTime = new Date(now);
+      const workEnd = new Date(now);
+      workEnd.setHours(WORK_END_HOUR, WORK_END_MIN, 0, 0);
+      
+      if (recordTime < workEnd) {
+        earlyLeaveMinutes = Math.floor((workEnd - recordTime) / 60000);
+      }
+    }
+
+    const record = {
+      employeeId: CURRENT_EMPLOYEE.id,
+      employeeName: CURRENT_EMPLOYEE.fullName,
+      employeeNumber: CURRENT_EMPLOYEE.employeeNumber,
+      department: CURRENT_EMPLOYEE.department,
+      type,
+      serverTimestamp: now,
+      clientTimestamp: now,
+      dateKey,
+      employeeId_dateKey: `${CURRENT_EMPLOYEE.id}_${dateKey}`,
+      latitude: position.lat,
+      longitude: position.lng,
+      accuracyMeters: Math.round(position.accuracy),
+      mapsLink: `https://www.google.com/maps?q=${position.lat},${position.lng}`,
+      status: position.accuracy > 100 ? 'needs_review' : 'approved',
+      source: 'web',
+      device: navigator.userAgent.slice(0, 80),
+      lateMinutes: lateMinutes,
+      earlyLeaveMinutes: earlyLeaveMinutes
+    };
+
+    await set(ref(db, `attendanceRecords/${recordId}`), record);
+
+    push(ref(db, '_events'), {
+      employeeId: CURRENT_EMPLOYEE.id,
+      employeeName: CURRENT_EMPLOYEE.fullName,
+      type,
+      recordId,
+      ts: now
+    }).catch(() => {});
+
+    showToast(
+      type === 'check_in' ? '✅ تم تسجيل الحضور بنجاح' : '✅ تم تسجيل الانصراف بنجاح',
+      'success'
+    );
+  } catch (err) {
+    console.error(err);
+    showToast('فشل التسجيل: ' + (err.message || 'خطأ غير معروف'), 'error');
+  } finally {
+    submitting = false;
+    setLoading(btn, false);
+    renderState();
+  }
+}
+
+$('checkInBtn').addEventListener('click',  () => submitAttendance('check_in'));
+$('checkOutBtn').addEventListener('click', () => submitAttendance('check_out'));
+$('retryGeo').addEventListener('click', () => {
+  position = null;
+  renderState();
+  initGeolocation();
+});
+
+renderProfile();
+subscribeTodayRecords();
+initGeolocation();
+</script>
+</body>
+</html>
